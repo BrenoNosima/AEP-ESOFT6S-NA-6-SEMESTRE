@@ -61,6 +61,20 @@ def test_list_all_returns_saved_consultations(repository) -> None:
     assert consultation in results
 
 
+def test_update_category_against_real_mongodb(repository) -> None:
+    consultation = Consultation(
+        question="Como separar lixo reciclável?",
+        category="geral",
+        answer="Separe papel, plástico, vidro e metal em recipientes diferentes.",
+    )
+    repository.save(consultation)
+
+    updated = repository.update_category(consultation.id, "residuos")
+
+    assert updated is not None
+    assert updated.category == "residuos"
+
+
 def test_delete_removes_from_real_mongodb(repository) -> None:
     consultation = Consultation(
         question="Posso jogar óleo de cozinha na pia?",

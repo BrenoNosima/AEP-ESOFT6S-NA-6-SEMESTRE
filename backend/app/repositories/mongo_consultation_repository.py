@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pymongo import ReturnDocument
 from pymongo.database import Database
 
 from app.domain.interfaces.consultation_repository import ConsultationRepository
@@ -29,6 +30,14 @@ class MongoConsultationRepository(ConsultationRepository):
     def delete(self, consultation_id: str) -> bool:
         result = self._collection.delete_one({"_id": consultation_id})
         return result.deleted_count > 0
+
+    def update_category(self, consultation_id: str, category: str) -> Consultation | None:
+        document = self._collection.find_one_and_update(
+            {"_id": consultation_id},
+            {"$set": {"category": category}},
+            return_document=ReturnDocument.AFTER,
+        )
+        return self._to_entity(document) if document else None
 
     @staticmethod
     def _to_document(consultation: Consultation) -> dict:
