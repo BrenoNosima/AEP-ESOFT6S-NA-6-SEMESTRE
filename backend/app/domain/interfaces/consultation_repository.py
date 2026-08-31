@@ -27,3 +27,8 @@ class ConsultationRepository(ABC):
     def delete(self, consultation_id: str) -> bool:
         """Remove uma consulta pelo id; retorna True se algo foi removido."""
         raise NotImplementedError
+
+    @abstractmethod
+    def update_category(self, consultation_id: str, category: str) -> Consultation | None:
+        """Atualiza a categoria de uma consulta existente; retorna None se não existir."""
+        raise NotImplementedError

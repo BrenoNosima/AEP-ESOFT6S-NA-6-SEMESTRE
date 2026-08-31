@@ -84,3 +84,20 @@ def test_delete_removes_existing_consultation(repository) -> None:
 
 def test_delete_returns_false_when_not_found(repository) -> None:
     assert repository.delete("id-inexistente") is False
+
+
+def test_update_category_changes_only_the_category(repository) -> None:
+    consultation = _make_consultation(category="agua")
+    repository.save(consultation)
+
+    updated = repository.update_category(consultation.id, "residuos")
+
+    assert updated is not None
+    assert updated.category == "residuos"
+    assert updated.question == consultation.question
+    assert updated.answer == consultation.answer
+    assert repository.get_by_id(consultation.id).category == "residuos"
+
+
+def test_update_category_returns_none_when_not_found(repository) -> None:
+    assert repository.update_category("id-inexistente", "residuos") is None
