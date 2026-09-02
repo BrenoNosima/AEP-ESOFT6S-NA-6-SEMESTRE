@@ -24,7 +24,9 @@ class GroqProvider(LLMProvider):
         except Exception as error:
             raise RuntimeError("Não foi possível obter uma resposta da Groq.") from error
 
-        if not isinstance(response.content, str):
+        content = response.content
+
+        if not isinstance(content, str):
             raise RuntimeError("A Groq retornou uma resposta em formato inválido.")
 
-        return response.content
+        return content
