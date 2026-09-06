@@ -6,8 +6,6 @@ from app.services.sustainability_service import SustainabilityService
 
 
 class ConsultationService:
-    """Orquestra SustainabilityService (gera resposta) e ConsultationRepository (persiste)."""
-
     def __init__(
         self,
         sustainability_service: SustainabilityService,
