@@ -27,8 +27,13 @@ class FakeConsultationRepository(ConsultationRepository):
         self._storage[consultation.id] = consultation
         return consultation
 
-    def list_all(self) -> list[Consultation]:
-        return list(self._storage.values())
+    def list_all(
+        self, *, category: str | None = None, limit: int = 50, skip: int = 0
+    ) -> list[Consultation]:
+        items = list(self._storage.values())
+        if category is not None:
+            items = [c for c in items if c.category == category]
+        return items[skip : skip + limit]
 
     def get_by_id(self, consultation_id: str) -> Consultation | None:
         return self._storage.get(consultation_id)
@@ -120,3 +125,31 @@ def test_delete_consultation_returns_false_when_not_found() -> None:
     service, _, _ = _make_service()
 
     assert service.delete_consultation("id-inexistente") is False
+
+
+def test_update_consultation_category_changes_only_the_category() -> None:
+    service, _, _ = _make_service()
+    created = service.create_consultation("Pergunta", "geral")
+
+    updated = service.update_consultation_category(created.id, "residuos")
+
+    assert updated is not None
+    assert updated.category == "residuos"
+    assert updated.question == created.question
+    assert updated.answer == created.answer
+
+
+def test_update_consultation_category_returns_none_when_not_found() -> None:
+    service, _, _ = _make_service()
+
+    assert service.update_consultation_category("id-inexistente", "agua") is None
+
+
+def test_list_consultations_filters_by_category() -> None:
+    service, _, _ = _make_service()
+    service.create_consultation("P1", "agua")
+    service.create_consultation("P2", "residuos")
+
+    results = service.list_consultations(category="agua")
+
+    assert [c.category for c in results] == ["agua"]

@@ -14,8 +14,14 @@ class ConsultationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_all(self) -> list[Consultation]:
-        """Lista todas as consultas armazenadas."""
+    def list_all(
+        self,
+        *,
+        category: str | None = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> list[Consultation]:
+        """Lista consultas (mais recentes primeiro), com filtro e paginação opcionais."""
         raise NotImplementedError
 
     @abstractmethod
