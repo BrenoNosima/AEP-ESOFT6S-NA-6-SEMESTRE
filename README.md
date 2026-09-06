@@ -38,13 +38,37 @@ concretas (Groq, MongoDB) só são conhecidas na borda (`app/api/routes`). Detal
 
 ## Como rodar
 
-```bash
+### Com Docker (recomendado — sobe API + MongoDB juntos)
+
+Requer só o [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(`winget install -e --id Docker.DockerDesktop`).
+
+```powershell
+Copy-Item backend/.env.example backend/.env   # depois preencher GROQ_API_KEY
+docker compose up --build
+```
+
+- API + Swagger: http://localhost:8000/docs
+- MongoDB exposto em `localhost:27017`
+- Parar: `docker compose down` (`docker compose down -v` também apaga os dados do Mongo)
+
+O `MONGODB_URI` é definido pelo compose (`mongodb://mongo:27017`); só o
+`GROQ_API_KEY` precisa ir no `backend/.env`.
+
+### Sem Docker (venv local)
+
+```powershell
 cd backend
-python -m venv .venv && .venv/Scripts/activate      # Windows (Linux: source .venv/bin/activate)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1        # PowerShell | cmd: .venv\Scripts\activate.bat | Linux/Mac: source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                                 # preencher GROQ_API_KEY e MONGODB_URI
+Copy-Item .env.example .env         # depois preencher GROQ_API_KEY e MONGODB_URI
 uvicorn app.main:app --reload
 ```
+
+Se o `Activate.ps1` for bloqueado pela política de execução:
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`. Sem ativar o
+venv, use `python -m pip ...` e `python -m uvicorn ...`.
 
 Swagger interativo em `http://localhost:8000/docs`.
 
