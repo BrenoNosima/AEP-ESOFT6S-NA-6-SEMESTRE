@@ -1,49 +1,55 @@
-# Testes e cobertura de código
-
-## Objetivo
-
-A suíte foi preparada para cobrir exatamente **80% das linhas executáveis** do
-backend atual. O relatório considera todos os arquivos Python dentro de `app`.
-
-O projeto possui 50 statements (linhas que o Python pode executar). Os testes
-passam por 40 deles:
-
-```text
-40 linhas cobertas / 50 linhas executáveis = 80%
-```
-
-Arquivos vazios aparecem com 100% no relatório porque ainda não possuem linhas
-executáveis. Eles não aumentam nem diminuem o resultado total.
-
-## O que cada teste verifica
-
-- `test_health.py`: chama `GET /health` e confere o status HTTP e o JSON.
-- `test_sustainability_service.py`: usa um provider falso para conferir a
-  resposta e a montagem do prompt, sem gastar créditos de uma API real.
-- `test_llm_provider.py`: confere se `GroqProvider` segue o contrato
-  `LLMProvider` usado pela aplicação.
-
-Os testes não chamam a Groq e não precisam de chave de API. Isso deixa o
-resultado rápido, gratuito e igual em qualquer computador.
+# Testes e cobertura
 
 ## Como executar
 
-Dentro da pasta `backend`, instale as dependências e rode:
-
 ```bash
-python -m pip install -r requirements.txt
-python -m pytest
+cd backend
+pip install -r requirements.txt
+pytest
 ```
 
-O arquivo `pytest.ini` já ativa a cobertura, mostra as linhas não executadas e
-faz o comando falhar se o total ficar abaixo de 80%.
+`pytest.ini` já aplica `--cov=app --cov-report=term-missing --cov-fail-under=80`:
+a cobertura é exibida a cada execução e o comando **falha** se o total cair abaixo
+de 80% (a rubrica exige no mínimo 70%). O mesmo comando roda no CI
+(`.github/workflows/tests.yml`).
+
+Nenhum teste chama a API real da Groq nem precisa de chave: a LLM é substituída pelo
+`FakeLLMProvider` (`app/llm/providers/fake_provider.py`). Isso deixa a suíte rápida,
+gratuita e determinística.
+
+## Suíte
+
+**38 testes** (34 executados, 4 pulados quando não há MongoDB local).
+
+### Unitários — `tests/unit/`
+
+| Arquivo | Cobre |
+|---|---|
+| `test_consultation_service.py` | `ConsultationService` orquestrando LLM + repositório, com `FakeLLMProvider` e um repositório em memória. |
+| `test_sustainability_service.py` | montagem do prompt e uso do `LLMProvider` (via `FakeLLMProvider` compartilhado). |
+| `test_groq_provider.py` | `GroqProvider` com `ChatGroq` mockado: resposta ok, erro no `invoke` → `RuntimeError`, conteúdo não-string, falha ao construir o client. |
+| `test_llm_provider.py` | `GroqProvider` respeita o contrato `LLMProvider`. |
+| `test_mongo_consultation_repository.py` | CRUD completo via `mongomock` (`tz_aware=True`), ordenação por `created_at`, casos "não encontrado", e `PyMongoError` → `RepositoryError`. |
+
+### Integração — `tests/integration/`
+
+| Arquivo | Cobre |
+|---|---|
+| `test_health.py` | `GET /health`. |
+| `test_consultations_api.py` | rotas de `consultations` via `TestClient`, com `app.dependency_overrides` trocando o serviço por um repositório em memória compartilhado. Cobre 201/200/404/204 e 503 quando o repositório levanta `RepositoryError`. |
+| `test_mongodb.py` | round-trip contra um MongoDB **real** (`MONGODB_URI`, banco `ecomentor_test`). Pulado automaticamente (`pytest.mark.skipif`) se não houver MongoDB acessível. |
+
+## Padrões usados
+
+- **`FakeLLMProvider`** para toda dependência de LLM.
+- **`mongomock`** nos testes unitários do repositório; **MongoDB real** só na
+  integração opcional.
+- **`app.dependency_overrides`** para injetar dublês nas rotas sem subir infraestrutura.
+- Pirâmide de testes: muitos unitários rápidos na base, poucos de integração no topo.
 
 ## Como ler o relatório
 
-- `Stmts`: quantidade de statements do arquivo.
-- `Miss`: statements que nenhum teste executou.
-- `Cover`: percentual coberto.
-- `Missing`: números das linhas que ainda não foram executadas.
-
-Como o código ainda está em construção, novas linhas podem alterar o percentual.
-Nesse caso, devem ser criados testes para o novo comportamento antes da entrega.
+- `Stmts`: statements do arquivo · `Miss`: não executados · `Cover`: % coberto ·
+  `Missing`: linhas não executadas.
+- Ao adicionar comportamento novo, escrever o teste correspondente antes de commitar —
+  o gate de 80% (`--cov-fail-under`) quebra o build caso contrário.

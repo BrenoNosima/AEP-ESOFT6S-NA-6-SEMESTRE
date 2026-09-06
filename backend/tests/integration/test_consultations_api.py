@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.api.routes.consultations import get_consultation_service
+from app.domain.exceptions import RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
@@ -38,10 +39,12 @@ class InMemoryConsultationRepository(ConsultationRepository):
         raise NotImplementedError
 
 
+_repository = InMemoryConsultationRepository()
+
+
 def _override_consultation_service() -> ConsultationService:
     sustainability_service = SustainabilityService(FakeLLMProvider("Descarte em ponto de coleta."))
-    repository = InMemoryConsultationRepository()
-    return ConsultationService(sustainability_service, repository)
+    return ConsultationService(sustainability_service, _repository)
 
 
 app.dependency_overrides[get_consultation_service] = _override_consultation_service
@@ -108,3 +111,20 @@ def test_delete_consultation_returns_404_when_missing() -> None:
     response = client.delete("/consultations/id-inexistente")
 
     assert response.status_code == 404
+
+
+def test_list_consultations_returns_503_when_repository_unavailable() -> None:
+    class FailingRepository(InMemoryConsultationRepository):
+        def list_all(self) -> list[Consultation]:
+            raise RepositoryError("MongoDB indisponível")
+
+    def _override_failing() -> ConsultationService:
+        return ConsultationService(
+            SustainabilityService(FakeLLMProvider("x")), FailingRepository()
+        )
+
+    app.dependency_overrides[get_consultation_service] = _override_failing
+    try:
+        assert client.get("/consultations").status_code == 503
+    finally:
+        app.dependency_overrides[get_consultation_service] = _override_consultation_service

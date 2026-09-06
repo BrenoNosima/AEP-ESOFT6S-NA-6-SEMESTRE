@@ -13,4 +13,7 @@ class Consultation:
     category: str
     answer: str
     id: str = field(default_factory=lambda: str(uuid4()))
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # microsecond=0: BSON guarda datetime só em milissegundo; mantém save/get idempotente.
+    created_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0)
+    )

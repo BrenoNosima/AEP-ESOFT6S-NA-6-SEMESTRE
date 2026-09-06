@@ -23,6 +23,6 @@ Para cada critério da rubrica, verifique evidência concreta no repositório (n
 7. **Cobertura ≥ 70%** — delegue para o subagente/skill de cobertura (`coverage-check`) e reporte o número exato.
 8. **Vídeo** — apenas lembre que este item não é auditável pelo repositório; confirme que existe um roteiro ou rascunho em algum lugar do time.
 
-Também confira violações de escopo (não fazem parte da 1ª entrega): pasta `agents/` do LangGraph, mais de um `*_provider.py` real em `app/llm/providers/` além do Gemini e do Fake, `.env` commitado, segunda coleção Mongo.
+Também confira violações de escopo (não fazem parte da 1ª entrega): pasta `agents/` do LangGraph, mais de um `*_provider.py` real em `app/llm/providers/` além do Groq e do Fake, `.env` commitado, segunda coleção Mongo.
 
 Termine com um relatório objetivo: para cada critério, **OK** ou **PENDENTE**, com o arquivo/comando que embasa a conclusão. Não invente estado — se não conseguir verificar algo, diga que não deu para confirmar.

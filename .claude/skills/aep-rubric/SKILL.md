@@ -36,7 +36,7 @@ description: >-
 - Objetos homogêneos, com estrutura simples.
 - Operações básicas de CRUD.
 
-Qualquer coisa além disso (múltiplas coleções, relacionamento entre coleções, documentos aninhados/subdocumentos) é **explicitamente da 2ª entrega**, não desta. Ver também as regras de escopo em `CLAUDE.md` na raiz do repositório, que traduzem isso para decisões concretas de código deste projeto (Gemini como único provider, sem LangGraph/agents, sem front-end).
+Qualquer coisa além disso (múltiplas coleções, relacionamento entre coleções, documentos aninhados/subdocumentos) é **explicitamente da 2ª entrega**, não desta. Ver também as regras de escopo em `CLAUDE.md` na raiz do repositório, que traduzem isso para decisões concretas de código deste projeto (Groq como único provider, sem LangGraph/agents, sem front-end).
 
 ## Organização mínima do repositório (seção 9 do PDF)
 

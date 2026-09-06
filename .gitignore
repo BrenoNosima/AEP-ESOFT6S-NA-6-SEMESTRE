@@ -1,0 +1,14 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Testes / cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Segredos e config local
+.env
+**/.env
+.claude/settings.local.json

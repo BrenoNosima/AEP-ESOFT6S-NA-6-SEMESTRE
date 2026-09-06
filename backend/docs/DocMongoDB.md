@@ -9,11 +9,45 @@ O backend usa MongoDB como único banco de dados, com uma única coleção, `con
 Arquitetura em camadas, de fora para dentro:
 
 ```
-app/api/routes/          -> endpoints FastAPI 
+app/api/routes/          -> endpoints FastAPI
 app/services/            -> regra de negócio
 app/domain/interfaces/   -> contratos abstratos (não sabem que MongoDB existe)
+app/domain/models/       -> entidade Consultation
 app/repositories/        -> implementação concreta sobre MongoDB
 app/database/            -> conexão com o MongoDB
+```
+
+```mermaid
+flowchart TD
+    Client["Cliente / Swagger (/docs)"]
+
+    subgraph api["app/api/routes/consultations.py"]
+        Route["rotas: POST · GET · GET/{id} · DELETE"]
+        Dep["Depends(): get_database → get_consultation_repository → get_consultation_service"]
+    end
+    subgraph services["app/services"]
+        CService["ConsultationService"]
+        SService["SustainabilityService"]
+    end
+    subgraph domain["app/domain — não conhece MongoDB"]
+        Interface["interfaces/ConsultationRepository (ABC)"]
+        Model["models/Consultation (@dataclass frozen)"]
+    end
+    subgraph data["camada de dados — única que conhece MongoDB"]
+        Repo["repositories/MongoConsultationRepository"]
+        Conn["database/mongodb.py · get_database() @lru_cache"]
+    end
+    Mongo[("MongoDB<br/>database: ecomentor<br/>collection: consultations")]
+
+    Client --> Route
+    Route --> CService
+    CService --> SService
+    Dep -. injeta .-> CService
+    CService --> Interface
+    Interface -. implementada por .-> Repo
+    Repo --> Model
+    Repo --> Conn
+    Conn --> Mongo
 ```
 
 O domínio (`app/domain/`) não importa nada de `pymongo`. Só a camada de `repositories/` e `database/` sabe que o banco é MongoDB, isso permite trocar de banco no futuro sem tocar em regra de negócio, e permite testar a regra de negócio sem precisar de um banco de verdade.
@@ -34,6 +68,28 @@ Estrutura do documento na coleção `consultations`:
 }
 ```
 
+```mermaid
+erDiagram
+    "ecomentor (database)" ||--|| "consultations (collection)" : contém
+    "consultations (collection)" {
+        string   _id        "PK — UUID da aplicação (str(uuid4)), não ObjectId"
+        string   question   "pergunta do usuário — imutável"
+        string   category   "categoria — único campo mutável (update_category)"
+        string   answer      "resposta gerada pela LLM — imutável"
+        datetime created_at  "UTC, timezone-aware, precisão de milissegundo"
+    }
+```
+
+A coleção é criada de forma *lazy*: o MongoDB só a materializa no primeiro `insert_one`.
+
+```mermaid
+flowchart LR
+    A["MongoClient(MONGODB_URI, tz_aware=True)"] --> B["client['ecomentor'] (Database)"]
+    B --> C["database['consultations'] (handle da coleção)"]
+    C -- "1º insert_one()" --> D[("coleção 'consultations' criada")]
+    D --> E["CRUD: save · list_all · get_by_id · update_category · delete"]
+```
+
 - **Coleção única**, documentos homogêneos (todos com os mesmos 5 campos, sempre preenchidos) — atende diretamente ao requisito da AEP para o 1º semestre.
 - `Consultation` é uma `@dataclass(frozen=True)` do Python puro (não Pydantic). Motivo: manter o modelo de domínio isolado de qualquer biblioteca de infraestrutura — os schemas HTTP do FastAPI (esses sim Pydantic) ficam restritos à borda da API, não ao domínio.
 - `frozen=True` (imutável) e `answer` obrigatório: uma `Consultation` só é criada depois que a LLM já respondeu, então nunca existe um registro "pela metade" no banco. Isso é reforçado pela própria ordem dos campos na dataclass — `question`, `category`, `answer` são obrigatórios; `id` e `created_at` têm valor default.
@@ -42,7 +98,7 @@ Estrutura do documento na coleção `consultations`:
 
 - O campo `_id` do Mongo recebe o mesmo `id` gerado pela entidade de domínio (`str(uuid4())`), em vez de deixar o MongoDB gerar um `ObjectId`.
 - Motivo: o MongoDB aceita qualquer valor único como `_id` (não precisa ser `ObjectId`) — usar o id que o domínio já gera evita ter dois identificadores diferentes para o mesmo registro, e evita importar `bson.ObjectId` dentro da camada de domínio ou de serviço.
-- `created_at` é sempre gerado como `datetime` **timezone-aware** (`datetime.now(timezone.utc)`), nunca naive — MongoDB/BSON armazena datas em UTC internamente, então usar um valor naive geraria bugs sutis de comparação/ordenação.
+- `created_at` é sempre gerado como `datetime` **timezone-aware** (`datetime.now(timezone.utc).replace(microsecond=0)`), nunca naive — MongoDB/BSON armazena datas em UTC e só com precisão de milissegundo; truncar o microssegundo na origem mantém o round-trip `save`/`get_by_id` idempotente e evita bugs sutis de comparação/ordenação.
 
 ## 4. Driver e conexão
 
