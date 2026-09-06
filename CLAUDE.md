@@ -52,13 +52,20 @@ Isso é o que vira evidência de "GitHub e versionamento" (histórico de commits
 
 ## Rodando o projeto
 
-```bash
+**Com Docker** (sobe API + MongoDB): na raiz do repo, `Copy-Item backend/.env.example backend/.env` (preencher `GROQ_API_KEY`) e `docker compose up --build`. Ver `docker-compose.yml`.
+
+**Sem Docker** (venv local):
+
+```powershell
 cd backend
-python -m venv .venv && .venv/Scripts/activate   # Windows
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1   # PowerShell (cmd: .venv\Scripts\activate.bat; Linux/Mac: source .venv/bin/activate)
 pip install -r requirements.txt
-cp .env.example .env   # preencher GROQ_API_KEY e MONGODB_URI
+Copy-Item .env.example .env    # preencher GROQ_API_KEY e MONGODB_URI
 uvicorn app.main:app --reload
 ```
+
+`&&` não funciona no Windows PowerShell 5.1 — rode uma linha por vez. Sem ativar o venv, use `python -m` (ex.: `python -m uvicorn app.main:app --reload`).
 
 Swagger em `http://localhost:8000/docs`.
 
@@ -66,10 +73,10 @@ Swagger em `http://localhost:8000/docs`.
 
 ```bash
 cd backend
-pytest --cov=app --cov-report=term-missing --cov-fail-under=70
+pytest
 ```
 
-A cobertura mínima obrigatória é 70% sobre o código da PoC desta entrega. O CI (`.github/workflows/tests.yml`) deve rodar esse mesmo comando e falhar o build abaixo do limite — é a evidência reproduzível que a rubrica pede.
+O `pytest.ini` já aplica `--cov=app --cov-report=term-missing --cov-fail-under=80`. A rubrica exige no mínimo 70%; o projeto trava em 80%. O CI (`.github/workflows/tests.yml`, na raiz) roda o mesmo `pytest` com um serviço `mongo:7`, então lá os testes de integração real também executam — é a evidência reproduzível que a rubrica pede.
 
 Testes que dependem da LLM devem usar `FakeLLMProvider` (`app/llm/providers/fake_provider.py`), nunca a API real da Groq — mantém os testes determinísticos, rápidos e sem custo.
 
