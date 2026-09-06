@@ -5,7 +5,7 @@
 Chatbot de orientação em sustentabilidade. Usuário manda uma dúvida (ex: "posso jogar óleo de cozinha na pia?"), a API consulta uma LLM para gerar uma orientação educativa e salva a interação no MongoDB.
 
 - **ODS:** 12 — Consumo e Produção Responsáveis.
-- **Fluxo:** Usuário → FastAPI → `ConsultationService` → `SustainabilityService` → `LLMProvider` (Groq) → `MongoConsultationRepository` (MongoDB) → resposta JSON.
+- **Fluxo:** Usuário → FastAPI (`api/router.py`) → `ConsultationService` → `SustainabilityService` → `LLMProvider` (Groq) → `MongoConsultationRepository` (MongoDB) → resposta JSON.
 - **Trabalho da faculdade:** `AEP_ESoft_6S.pdf`. **Divisão de papéis:** `EcoMentor_Chatbot_Divisao_3_Pessoas.pdf`.
 
 ## Escopo travado da 1ª entrega — não expandir
@@ -23,22 +23,23 @@ Se alguma tarefa parecer exigir essas coisas, é sinal de que ela pertence à 2�
 ## Arquitetura (camadas em `backend/app`)
 
 ```
-api/routes/          -> endpoints FastAPI (recebe request, chama service, devolve JSON)
-services/            -> regra de negócio (ConsultationService, SustainabilityService)
-domain/interfaces/   -> contratos abstratos (ConsultationRepository, LLMProvider)
+api/router.py         -> endpoints FastAPI de consultations (recebe request, chama service, devolve JSON)
+api/routes/           -> outros endpoints FastAPI (ex: health)
+api/services/         -> regra de negócio (ConsultationService, SustainabilityService)
+api/repositories/     -> implementação concreta dos repositories (Mongo)
+domain/interfaces/    -> contratos abstratos (ConsultationRepository, LLMProvider)
 domain/models/        -> entidades (Consultation)
-repositories/        -> implementação concreta dos repositories (Mongo)
-llm/providers/       -> implementação concreta dos LLM providers (Groq, Fake)
-database/            -> conexão com MongoDB
-core/                -> configuração (variáveis de ambiente, settings)
+llm/providers/        -> implementação concreta dos LLM providers (Groq, Fake)
+database/             -> conexão com MongoDB
+core/                 -> configuração (variáveis de ambiente, settings)
 ```
 
-Regra de dependência: rotas dependem de services; services dependem só das **interfaces** (`ConsultationRepository`, `LLMProvider`), nunca das implementações concretas diretamente — isso é o que sustenta o critério de POO/abstração da rubrica.
+Regra de dependência: rotas dependem de services; services dependem só das **interfaces** (`ConsultationRepository`, `LLMProvider`), nunca das implementações concretas diretamente — isso é o que sustenta o critério de POO/abstração da rubrica. `domain/interfaces` e `domain/models` continuam fora de `api/` justamente para não misturar contrato abstrato com camada HTTP.
 
 **Divisão entre os 3 integrantes** (ver PDF de divisão para detalhes):
-- Pessoa 1 — Backend e API: `main.py`, `api/routes/`, `services/consultation_service.py`.
-- Pessoa 2 — LLM e LangChain: `llm/providers/`, `services/sustainability_service.py`.
-- Pessoa 3 — MongoDB e NoSQL: `database/mongodb.py`, `repositories/`, `domain/models/consultation.py`.
+- Pessoa 1 — Backend e API: `main.py`, `api/router.py`, `api/routes/`, `api/services/consultation_service.py`.
+- Pessoa 2 — LLM e LangChain: `llm/providers/`, `api/services/sustainability_service.py`.
+- Pessoa 3 — MongoDB e NoSQL: `database/mongodb.py`, `api/repositories/`, `domain/models/consultation.py`.
 
 ## Como trabalhamos: 1 tarefa do Kanban = 1 commit
 

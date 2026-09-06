@@ -1,13 +1,18 @@
+from __future__ import annotations
+
+import mongomock
+import pytest
 from fastapi.testclient import TestClient
 
-from app.api.routes.consultations import get_consultation_service
+from app.api.router import get_consultation_service, get_llm_provider
+from app.api.services.consultation_service import ConsultationService
+from app.api.services.sustainability_service import SustainabilityService
+from app.database.mongodb import get_database
 from app.domain.exceptions import RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
 from app.main import app
-from app.services.consultation_service import ConsultationService
-from app.services.sustainability_service import SustainabilityService
 
 
 class FakeLLMProvider(LLMProvider):
@@ -39,19 +44,36 @@ class InMemoryConsultationRepository(ConsultationRepository):
         raise NotImplementedError
 
 
-_repository = InMemoryConsultationRepository()
+class FailingConsultationRepository(InMemoryConsultationRepository):
+    def list_all(self) -> list[Consultation]:
+        raise RepositoryError("MongoDB indisponível")
 
 
-def _override_consultation_service() -> ConsultationService:
-    sustainability_service = SustainabilityService(FakeLLMProvider("Descarte em ponto de coleta."))
-    return ConsultationService(sustainability_service, _repository)
+@pytest.fixture
+def test_database():
+    return mongomock.MongoClient().db
 
 
-app.dependency_overrides[get_consultation_service] = _override_consultation_service
-client = TestClient(app)
+@pytest.fixture
+def client(test_database) -> TestClient:
+    app.dependency_overrides[get_llm_provider] = lambda: FakeLLMProvider(
+        "Descarte em ponto de coleta."
+    )
+    app.dependency_overrides[get_database] = lambda: test_database
+
+    yield TestClient(app)
+
+    app.dependency_overrides.clear()
 
 
-def test_create_consultation_returns_201_with_generated_answer() -> None:
+def test_health_returns_ok(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_create_consultation_returns_201_with_generated_answer(client: TestClient) -> None:
     response = client.post(
         "/consultations",
         json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
@@ -65,7 +87,7 @@ def test_create_consultation_returns_201_with_generated_answer() -> None:
     assert "id" in body and "created_at" in body
 
 
-def test_list_consultations_returns_created_items() -> None:
+def test_list_consultations_returns_created_items(client: TestClient) -> None:
     created = client.post(
         "/consultations",
         json={"question": "Como economizar água?", "category": "agua"},
@@ -77,7 +99,7 @@ def test_list_consultations_returns_created_items() -> None:
     assert any(item["id"] == created["id"] for item in response.json())
 
 
-def test_get_consultation_by_id_returns_it() -> None:
+def test_get_consultation_by_id_returns_it(client: TestClient) -> None:
     created = client.post(
         "/consultations",
         json={"question": "Como descartar pilhas?", "category": "residuos"},
@@ -89,13 +111,13 @@ def test_get_consultation_by_id_returns_it() -> None:
     assert response.json()["id"] == created["id"]
 
 
-def test_get_consultation_by_id_returns_404_when_missing() -> None:
+def test_get_consultation_by_id_returns_404_when_missing(client: TestClient) -> None:
     response = client.get("/consultations/id-inexistente")
 
     assert response.status_code == 404
 
 
-def test_delete_consultation_returns_204() -> None:
+def test_delete_consultation_returns_204(client: TestClient) -> None:
     created = client.post(
         "/consultations",
         json={"question": "Como reduzir consumo?", "category": "consumo"},
@@ -107,24 +129,20 @@ def test_delete_consultation_returns_204() -> None:
     assert client.get(f"/consultations/{created['id']}").status_code == 404
 
 
-def test_delete_consultation_returns_404_when_missing() -> None:
+def test_delete_consultation_returns_404_when_missing(client: TestClient) -> None:
     response = client.delete("/consultations/id-inexistente")
 
     assert response.status_code == 404
 
 
-def test_list_consultations_returns_503_when_repository_unavailable() -> None:
-    class FailingRepository(InMemoryConsultationRepository):
-        def list_all(self) -> list[Consultation]:
-            raise RepositoryError("MongoDB indisponível")
-
+def test_list_consultations_returns_503_when_repository_unavailable(client: TestClient) -> None:
     def _override_failing() -> ConsultationService:
         return ConsultationService(
-            SustainabilityService(FakeLLMProvider("x")), FailingRepository()
+            SustainabilityService(FakeLLMProvider("x")), FailingConsultationRepository()
         )
 
     app.dependency_overrides[get_consultation_service] = _override_failing
     try:
         assert client.get("/consultations").status_code == 503
     finally:
-        app.dependency_overrides[get_consultation_service] = _override_consultation_service
+        del app.dependency_overrides[get_consultation_service]

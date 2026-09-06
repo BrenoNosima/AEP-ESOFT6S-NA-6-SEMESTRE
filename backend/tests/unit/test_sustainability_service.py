@@ -1,5 +1,5 @@
 from app.llm.providers.fake_provider import FakeLLMProvider
-from app.services.sustainability_service import SustainabilityService
+from app.api.services.sustainability_service import SustainabilityService
 
 
 def test_service_uses_provider_and_returns_its_response() -> None:

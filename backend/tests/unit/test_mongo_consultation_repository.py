@@ -9,7 +9,7 @@ from pymongo.errors import PyMongoError
 
 from app.domain.exceptions import RepositoryError
 from app.domain.models.consultation import Consultation
-from app.repositories.mongo_consultation_repository import MongoConsultationRepository
+from app.api.repositories.mongo_consultation_repository import MongoConsultationRepository
 
 
 @pytest.fixture
