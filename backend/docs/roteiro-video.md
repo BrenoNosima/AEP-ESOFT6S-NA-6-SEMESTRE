@@ -20,7 +20,7 @@ do tempo. Sugestão de divisão entre os 3 integrantes: uma seção cada + a dem
 
 ## 3. Demonstração da PoC no Swagger (`/docs`) — ~60s
 
-Pré-requisito: `.env` com `GROQ_API_KEY` e MongoDB no ar; `uvicorn app.main:app --reload`.
+Pré-requisito: `backend/.env` com `GROQ_API_KEY`. Forma mais simples: `docker compose up --build` na raiz (sobe API + MongoDB). Sem Docker: MongoDB no ar + `uvicorn app.main:app --reload`.
 
 1. `POST /consultations` com `{"question": "Posso jogar óleo de cozinha na pia?", "category": "residuos"}`
    → 201 com a orientação gerada pela Groq.

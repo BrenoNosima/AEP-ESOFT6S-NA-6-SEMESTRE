@@ -5,18 +5,33 @@ API FastAPI do EcoMentor. Visão geral do projeto e do problema/ODS no
 
 ## Requisitos
 
-- Python 3.12+
+- Python 3.12+ (ou só Docker Desktop — ver abaixo)
 - (Opcional) MongoDB local para rodar os testes de integração reais
 - Chave da Groq (<https://console.groq.com/keys>) para chamadas reais à LLM
 
-## Instalação
+## Rodar com Docker (API + MongoDB)
 
-```bash
-python -m venv .venv
-.venv/Scripts/activate          # Windows | Linux/Mac: source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env             # preencher GROQ_API_KEY e MONGODB_URI
+A partir da **raiz do repositório** (o `docker-compose.yml` fica lá):
+
+```powershell
+Copy-Item backend/.env.example backend/.env   # depois preencher GROQ_API_KEY
+docker compose up --build
 ```
+
+`docker compose down` para parar (`-v` também apaga o volume do Mongo). O compose
+define `MONGODB_URI=mongodb://mongo:27017`; só o `GROQ_API_KEY` precisa ir no `.env`.
+
+## Instalação (venv local)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1     # PowerShell | cmd: .venv\Scripts\activate.bat | Linux/Mac: source .venv/bin/activate
+pip install -r requirements.txt
+Copy-Item .env.example .env      # depois preencher GROQ_API_KEY e MONGODB_URI
+```
+
+`Activate.ps1` bloqueado? `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force`.
+Alternativa sem ativar: prefixe tudo com `python -m` (`python -m pip ...`, `python -m uvicorn ...`, `python -m pytest`).
 
 Variáveis (`.env`, ver `.env.example`):
 
