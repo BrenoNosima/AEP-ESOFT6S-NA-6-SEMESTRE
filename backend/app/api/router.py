@@ -13,9 +13,9 @@ from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
 from app.llm.providers.groq_provider import GroqProvider
-from app.repositories.mongo_consultation_repository import MongoConsultationRepository
-from app.services.consultation_service import ConsultationService
-from app.services.sustainability_service import SustainabilityService
+from app.api.repositories.mongo_consultation_repository import MongoConsultationRepository
+from app.api.services.consultation_service import ConsultationService
+from app.api.services.sustainability_service import SustainabilityService
 
 router = APIRouter(prefix="/consultations", tags=["consultations"])
 

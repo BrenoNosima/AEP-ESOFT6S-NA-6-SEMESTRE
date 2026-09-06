@@ -5,8 +5,8 @@ from dataclasses import replace
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
-from app.services.consultation_service import ConsultationService
-from app.services.sustainability_service import SustainabilityService
+from app.api.services.consultation_service import ConsultationService
+from app.api.services.sustainability_service import SustainabilityService
 
 
 class FakeLLMProvider(LLMProvider):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.models.consultation import Consultation
-from app.services.sustainability_service import SustainabilityService
+from app.api.services.sustainability_service import SustainabilityService
 
 
 class ConsultationService:

@@ -26,6 +26,6 @@ class GroqProvider(LLMProvider):
         content = response.content
 
         if not isinstance(content, str):
-            raise RuntimeError("A Groq retornou uma resposta em formato inválido.")
+            raise RuntimeError ("A Groq retornou uma resposta em formato inválido.")
 
         return content

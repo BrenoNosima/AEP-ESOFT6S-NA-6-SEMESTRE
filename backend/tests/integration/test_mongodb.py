@@ -6,7 +6,7 @@ from pymongo.errors import PyMongoError
 
 from app.core.config import settings
 from app.domain.models.consultation import Consultation
-from app.repositories.mongo_consultation_repository import MongoConsultationRepository
+from app.api.repositories.mongo_consultation_repository import MongoConsultationRepository
 
 TEST_DATABASE_NAME = "ecomentor_test"
 
