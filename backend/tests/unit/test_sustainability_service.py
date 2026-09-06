@@ -1,15 +1,5 @@
-from app.domain.interfaces.llm_provider import LLMProvider
+from app.llm.providers.fake_provider import FakeLLMProvider
 from app.services.sustainability_service import SustainabilityService
-
-
-class FakeLLMProvider(LLMProvider):
-    def __init__(self, fixed_response: str) -> None:
-        self.fixed_response = fixed_response
-        self.received_prompt: str | None = None
-
-    def generate_response(self, prompt: str) -> str:
-        self.received_prompt = prompt
-        return self.fixed_response
 
 
 def test_service_uses_provider_and_returns_its_response() -> None:

@@ -8,6 +8,7 @@ from pymongo.database import Database
 
 from app.core.config import settings
 from app.database.mongodb import get_database
+from app.domain.exceptions import RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
@@ -65,6 +66,9 @@ def get_consultation_service(
     return ConsultationService(sustainability_service, repository)
 
 
+_DATA_UNAVAILABLE = "Serviço de dados indisponível. Tente novamente."
+
+
 @router.post("", response_model=ConsultationResponse, status_code=201)
 def create_consultation(
     request: ConsultationRequest,
@@ -72,6 +76,8 @@ def create_consultation(
 ) -> ConsultationResponse:
     try:
         consultation = service.create_consultation(request.question, request.category)
+    except RepositoryError as error:
+        raise HTTPException(status_code=503, detail=_DATA_UNAVAILABLE) from error
     except RuntimeError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
     return ConsultationResponse.from_domain(consultation)
@@ -81,7 +87,11 @@ def create_consultation(
 def list_consultations(
     service: ConsultationService = Depends(get_consultation_service),
 ) -> list[ConsultationResponse]:
-    return [ConsultationResponse.from_domain(c) for c in service.list_consultations()]
+    try:
+        consultations = service.list_consultations()
+    except RepositoryError as error:
+        raise HTTPException(status_code=503, detail=_DATA_UNAVAILABLE) from error
+    return [ConsultationResponse.from_domain(c) for c in consultations]
 
 
 @router.get("/{consultation_id}", response_model=ConsultationResponse)
@@ -89,7 +99,10 @@ def get_consultation(
     consultation_id: str,
     service: ConsultationService = Depends(get_consultation_service),
 ) -> ConsultationResponse:
-    consultation = service.get_consultation(consultation_id)
+    try:
+        consultation = service.get_consultation(consultation_id)
+    except RepositoryError as error:
+        raise HTTPException(status_code=503, detail=_DATA_UNAVAILABLE) from error
     if consultation is None:
         raise HTTPException(status_code=404, detail="Consulta não encontrada.")
     return ConsultationResponse.from_domain(consultation)
@@ -100,6 +113,9 @@ def delete_consultation(
     consultation_id: str,
     service: ConsultationService = Depends(get_consultation_service),
 ) -> None:
-    deleted = service.delete_consultation(consultation_id)
+    try:
+        deleted = service.delete_consultation(consultation_id)
+    except RepositoryError as error:
+        raise HTTPException(status_code=503, detail=_DATA_UNAVAILABLE) from error
     if not deleted:
         raise HTTPException(status_code=404, detail="Consulta não encontrada.")

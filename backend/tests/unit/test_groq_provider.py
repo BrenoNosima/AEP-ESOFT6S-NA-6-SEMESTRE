@@ -42,3 +42,11 @@ def test_generate_response_rejects_non_string_content(chat_groq_class: MagicMock
 
     with pytest.raises(RuntimeError, match="formato inválido"):
         provider.generate_response("Como descarto pilhas usadas?")
+
+
+@patch("app.llm.providers.groq_provider.ChatGroq")
+def test_init_wraps_client_construction_errors(chat_groq_class: MagicMock) -> None:
+    chat_groq_class.side_effect = ValueError("sem api key")
+
+    with pytest.raises(RuntimeError, match="inicializar o cliente da Groq"):
+        GroqProvider(api_key="")

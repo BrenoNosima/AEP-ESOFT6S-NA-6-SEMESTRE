@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 import mongomock
 import pytest
+from pymongo.errors import PyMongoError
 
+from app.domain.exceptions import RepositoryError
 from app.domain.models.consultation import Consultation
 from app.repositories.mongo_consultation_repository import MongoConsultationRepository
 
 
 @pytest.fixture
 def database():
-    return mongomock.MongoClient().db
+    # tz_aware=True espelha o client real (app/database/mongodb.py).
+    return mongomock.MongoClient(tz_aware=True).db
 
 
 @pytest.fixture
@@ -101,3 +105,12 @@ def test_update_category_changes_only_the_category(repository) -> None:
 
 def test_update_category_returns_none_when_not_found(repository) -> None:
     assert repository.update_category("id-inexistente", "residuos") is None
+
+
+def test_pymongo_error_is_translated_into_repository_error() -> None:
+    collection = MagicMock()
+    collection.find.side_effect = PyMongoError("mongo indisponível")
+    repository = MongoConsultationRepository({"consultations": collection})
+
+    with pytest.raises(RepositoryError):
+        repository.list_all()

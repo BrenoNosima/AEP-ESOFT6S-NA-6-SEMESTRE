@@ -11,5 +11,7 @@ from app.core.config import settings
 @lru_cache
 def get_database() -> Database:
     """Retorna a instância (singleton) do banco MongoDB usado pela aplicação."""
-    client: MongoClient = MongoClient(settings.mongodb_uri, tz_aware=True)
+    client: MongoClient = MongoClient(
+        settings.mongodb_uri, tz_aware=True, serverSelectionTimeoutMS=5000
+    )
     return client[settings.mongodb_db_name]

@@ -5,7 +5,7 @@
 Chatbot de orientação em sustentabilidade. Usuário manda uma dúvida (ex: "posso jogar óleo de cozinha na pia?"), a API consulta uma LLM para gerar uma orientação educativa e salva a interação no MongoDB.
 
 - **ODS:** 12 — Consumo e Produção Responsáveis.
-- **Fluxo:** Usuário → FastAPI → `ConsultationService` → `SustainabilityService` → `LLMProvider` (Gemini) → `MongoConsultationRepository` (MongoDB) → resposta JSON.
+- **Fluxo:** Usuário → FastAPI → `ConsultationService` → `SustainabilityService` → `LLMProvider` (Groq) → `MongoConsultationRepository` (MongoDB) → resposta JSON.
 - **Trabalho da faculdade:** `AEP_ESoft_6S.pdf`. **Divisão de papéis:** `EcoMentor_Chatbot_Divisao_3_Pessoas.pdf`.
 
 ## Escopo travado da 1ª entrega — não expandir
@@ -13,7 +13,7 @@ Chatbot de orientação em sustentabilidade. Usuário manda uma dúvida (ex: "po
 O enunciado da AEP exige, para o 1º semestre, **uma única coleção NoSQL** com objetos homogêneos e CRUD básico. Por isso, nesta entrega:
 
 - Só existe a coleção `consultations`. Não criar uma segunda coleção nem relacionar coleções (isso é requisito da 2ª entrega).
-- Só existe **um** provider de LLM real: Gemini. Não implementar Groq/OpenAI agora — a interface `LLMProvider` já permite isso depois.
+- Só existe **um** provider de LLM real: Groq (`langchain-groq`). Não implementar Gemini/OpenAI/múltiplos providers agora — a interface `LLMProvider` já permite isso depois.
 - Sem LangGraph, sem múltiplos agentes, sem classificação automática de dúvidas. Isso é escopo da 2ª entrega.
 - Sem front-end. A demonstração é pelo Swagger (`/docs`) do FastAPI.
 - Nunca commitar `.env` ou chaves de API — só `.env.example`. O mesmo vale para `.claude/settings.local.json`, se alguém criar um.
@@ -28,7 +28,7 @@ services/            -> regra de negócio (ConsultationService, SustainabilitySe
 domain/interfaces/   -> contratos abstratos (ConsultationRepository, LLMProvider)
 domain/models/        -> entidades (Consultation)
 repositories/        -> implementação concreta dos repositories (Mongo)
-llm/providers/       -> implementação concreta dos LLM providers (Gemini, Fake)
+llm/providers/       -> implementação concreta dos LLM providers (Groq, Fake)
 database/            -> conexão com MongoDB
 core/                -> configuração (variáveis de ambiente, settings)
 ```
@@ -56,7 +56,7 @@ Isso é o que vira evidência de "GitHub e versionamento" (histórico de commits
 cd backend
 python -m venv .venv && .venv/Scripts/activate   # Windows
 pip install -r requirements.txt
-cp .env.example .env   # preencher GEMINI_API_KEY e MONGODB_URI
+cp .env.example .env   # preencher GROQ_API_KEY e MONGODB_URI
 uvicorn app.main:app --reload
 ```
 
@@ -71,7 +71,7 @@ pytest --cov=app --cov-report=term-missing --cov-fail-under=70
 
 A cobertura mínima obrigatória é 70% sobre o código da PoC desta entrega. O CI (`.github/workflows/tests.yml`) deve rodar esse mesmo comando e falhar o build abaixo do limite — é a evidência reproduzível que a rubrica pede.
 
-Testes que dependem da LLM devem usar `FakeLLMProvider` (`app/llm/providers/fake_provider.py`), nunca a API real do Gemini — mantém os testes determinísticos, rápidos e sem custo.
+Testes que dependem da LLM devem usar `FakeLLMProvider` (`app/llm/providers/fake_provider.py`), nunca a API real da Groq — mantém os testes determinísticos, rápidos e sem custo.
 
 ## Ferramentas de apoio em `.claude/`
 

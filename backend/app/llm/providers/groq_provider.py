@@ -12,11 +12,10 @@ class GroqProvider(LLMProvider):
         model: str = "openai/gpt-oss-20b",
         temperature: float = 0.0,
     ) -> None:
-        self._client = ChatGroq(
-            api_key=api_key,
-            model=model,
-            temperature=temperature,
-        )
+        try:
+            self._client = ChatGroq(api_key=api_key, model=model, temperature=temperature)
+        except Exception as error:
+            raise RuntimeError("Não foi possível inicializar o cliente da Groq.") from error
 
     def generate_response(self, prompt: str) -> str:
         try:
