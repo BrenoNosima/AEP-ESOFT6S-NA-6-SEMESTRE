@@ -31,6 +31,8 @@ class MongoConsultationRepository(ConsultationRepository):
 
     def __init__(self, database: Database) -> None:
         self._collection = database[self._COLLECTION_NAME]
+        self._collection.create_index([("created_at", -1)])
+        self._collection.create_index([("category", 1), ("created_at", -1)])
 
     @_translate_errors
     def save(self, consultation: Consultation) -> Consultation:
@@ -38,8 +40,17 @@ class MongoConsultationRepository(ConsultationRepository):
         return consultation
 
     @_translate_errors
-    def list_all(self) -> list[Consultation]:
-        documents = self._collection.find().sort("created_at", -1)
+    def list_all(
+        self,
+        *,
+        category: str | None = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> list[Consultation]:
+        query = {"category": category} if category else {}
+        documents = (
+            self._collection.find(query).sort("created_at", -1).skip(skip).limit(limit)
+        )
         return [self._to_entity(document) for document in documents]
 
     @_translate_errors

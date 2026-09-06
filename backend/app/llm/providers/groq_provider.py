@@ -11,9 +11,17 @@ class GroqProvider(LLMProvider):
         api_key: str,
         model: str = "openai/gpt-oss-20b",
         temperature: float = 0.0,
+        timeout: float = 30.0,
+        max_retries: int = 2,
     ) -> None:
         try:
-            self._client = ChatGroq(api_key=api_key, model=model, temperature=temperature)
+            self._client = ChatGroq(
+                api_key=api_key,
+                model=model,
+                temperature=temperature,
+                timeout=timeout,
+                max_retries=max_retries,
+            )
         except Exception as error:
             raise RuntimeError("Não foi possível inicializar o cliente da Groq.") from error
 
@@ -26,6 +34,9 @@ class GroqProvider(LLMProvider):
         content = response.content
 
         if not isinstance(content, str):
-            raise RuntimeError ("A Groq retornou uma resposta em formato inválido.")
+            raise RuntimeError("A Groq retornou uma resposta em formato inválido.")
+
+        if not content.strip():
+            raise RuntimeError("A Groq retornou uma resposta vazia.")
 
         return content

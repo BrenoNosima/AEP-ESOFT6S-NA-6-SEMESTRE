@@ -107,6 +107,31 @@ def test_update_category_returns_none_when_not_found(repository) -> None:
     assert repository.update_category("id-inexistente", "residuos") is None
 
 
+def test_list_all_filters_by_category(repository) -> None:
+    repository.save(_make_consultation(category="agua"))
+    repository.save(_make_consultation(category="residuos"))
+
+    results = repository.list_all(category="agua")
+
+    assert [c.category for c in results] == ["agua"]
+
+
+def test_list_all_applies_limit_and_skip(repository) -> None:
+    for i in range(5):
+        repository.save(
+            Consultation(
+                question=f"Pergunta {i}",
+                category="geral",
+                answer="ok",
+                created_at=datetime(2024, 1, i + 1, tzinfo=timezone.utc),
+            )
+        )
+
+    page = repository.list_all(limit=2, skip=1)
+
+    assert len(page) == 2
+
+
 def test_pymongo_error_is_translated_into_repository_error() -> None:
     collection = MagicMock()
     collection.find.side_effect = PyMongoError("mongo indisponível")

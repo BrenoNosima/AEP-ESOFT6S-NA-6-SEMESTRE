@@ -133,7 +133,7 @@ Arquivo: `app/repositories/mongo_consultation_repository.py`, implementando a in
 ## 7. Decisões de escopo — o que foi deixado de fora, de propósito
 
 - **Uma única coleção.** Multiplas coleções, relacionamento entre coleções e documentos aninhados/subdocumentos são explicitamente escopo da 2ª entrega da AEP, não desta.
-- **Sem índices adicionais além do `_id`** (automático do Mongo). Na escala desta PoC, com `operações básicas de CRUD`, não há necessidade demonstrada de índice extra; adicionar um agora seria otimização prematura.
+- **Índices** (criados no `__init__` do repositório, idempotentes): `created_at:-1` (ordenação da listagem) e o composto `category:1, created_at:-1` (filtro por categoria + ordenação da rota `GET /consultations?category=`). Além do `_id` automático.
 - **Sem ODM** (Beanie, MongoEngine etc.) — mapeamento manual é suficiente e mais simples de entender/depurar para 5 campos.
 - **Sem Motor/async** — ver seção 4.
 
