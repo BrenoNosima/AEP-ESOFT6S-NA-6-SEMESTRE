@@ -34,7 +34,7 @@ Variáveis (`.env`, ver `.env.example`):
 uvicorn app.main:app --reload
 ```
 
-- `GET /health` — checagem simples
+- `GET /health` — checagem de saúde; faz `ping` no MongoDB (200 se ok, 503 se indisponível)
 - `POST /consultations` — cria uma consulta (gera a resposta via Groq e persiste)
 - `GET /consultations` — lista (mais recentes primeiro)
 - `GET /consultations/{id}` — busca por id (404 se não existe)

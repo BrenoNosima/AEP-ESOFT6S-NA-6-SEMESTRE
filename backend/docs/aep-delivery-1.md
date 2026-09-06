@@ -46,7 +46,14 @@ testes. Falta expor na API:
 
 Commit de referência: `feat: expor atualização de categoria na API de consultations`.
 
-### Melhorias de robustez já anotadas
+### Robustez — já aplicado
+
+- `PyMongoError` (Mongo fora do ar) → `RepositoryError` → **503** nas rotas de `consultations`.
+- Falha ao construir o `ChatGroq` → `RuntimeError` → 502.
+- `get_database()` com `serverSelectionTimeoutMS=5000` (evita travar 30 s).
+- `GET /health` faz `ping` no MongoDB → 200 / 503.
+
+### Robustez — ainda pendente (handoff)
 
 - `get_llm_provider` reconstrói o `ChatGroq` a cada request — cachear (`@lru_cache`).
 - `tests/integration/test_consultations_api.py` usa `app.dependency_overrides` no import

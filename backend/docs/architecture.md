@@ -67,6 +67,7 @@ regra de negócio sem banco nem chave de API.
 |---|---|---|
 | Falha da LLM (`invoke` ou construção do client) | `GroqProvider` → `RuntimeError` → rota | 502 |
 | MongoDB indisponível / `PyMongoError` | `MongoConsultationRepository` → `RepositoryError` → rota | 503 |
+| MongoDB indisponível no `GET /health` | `health_check` faz `ping` e captura `PyMongoError` | 503 |
 | Recurso inexistente | rota (`None` do repositório) | 404 |
 
 `MongoConsultationRepository` converte qualquer `PyMongoError` em `RepositoryError`

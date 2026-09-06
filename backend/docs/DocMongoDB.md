@@ -104,10 +104,13 @@ flowchart LR
 
 Arquivo: `app/database/mongodb.py`.
 
-- Driver escolhido: **PyMongo síncrono** (`pymongo.MongoClient`), não o driver assíncrono (Motor), apesar do Motor ter sido cogitado inicialmente no `requirements.txt`.
+- Driver escolhido: **PyMongo síncrono** (`pymongo.MongoClient`), não o driver assíncrono (Motor).
 - Motivo: a interface `ConsultationRepository` foi definida com métodos síncronos. A própria documentação oficial do FastAPI recomenda usar `def` normal (não `async def`) quando não há necessidade clara de assincronia — rotas síncronas rodam automaticamente numa threadpool, sem travar o event loop. Para o tamanho desta PoC, isso é suficiente e evita complexidade desproporcional.
 - `get_database()` é um singleton via `@lru_cache` — o mesmo idioma já usado em `core/config.py:get_settings()`, para manter o projeto consistente consigo mesmo. `MongoClient` do PyMongo já gerencia seu próprio pool de conexões internamente, então não é preciso nenhum hook de `startup`/`shutdown` no FastAPI para abrir/fechar conexão.
 - O client é criado com `tz_aware=True`: por padrão o PyMongo devolve datas do Mongo como `datetime` naive mesmo o BSON guardando em UTC — sem essa flag, o `created_at` lido de volta do banco perderia a característica timezone-aware definida na modelagem.
+- `serverSelectionTimeoutMS=5000`: sem isso o default é 30 s — um MongoDB fora do ar faria qualquer request (inclusive `GET /health`) travar 30 s antes de virar `RepositoryError`/503.
+
+O endpoint `GET /health` faz `client.admin.command("ping")`: responde `{"status": "ok"}` com o banco acessível, ou **503** se o `ping` levantar `PyMongoError`.
 
 ## 5. Operações implementadas (CRUD completo)
 
@@ -118,13 +121,13 @@ Arquivo: `app/repositories/mongo_consultation_repository.py`, implementando a in
 - **Update** — `update_category(consultation_id, category)`: usa `find_one_and_update` com `return_document=ReturnDocument.AFTER`, atômico (busca e atualiza numa única ida ao banco, evitando race condition entre um update e uma leitura separados). Só o campo `category` pode ser atualizado — `question` e `answer` continuam imutáveis, porque representam um fato histórico (o que foi perguntado e o que a LLM respondeu naquele momento). "Atualizar" uma entidade imutável, na prática, significa gerar uma nova instância (`dataclasses.replace`), não mutar em memória.
 - **Delete** — `delete(consultation_id)`: `delete_one`, retorna `True`/`False` conforme algo tenha sido removido ou não.
 - Mapeamento entre documento (dict) e entidade (`Consultation`) é feito manualmente (`_to_document`/`_to_entity`), sem biblioteca de ODM — o modelo tem só 5 campos, então uma dependência extra de mapeamento objeto-documento adicionaria complexidade sem benefício proporcional.
-- Não há tratamento de erro (`try/except`) em volta das chamadas do PyMongo nesta camada — decisão deliberada de não construir tratamento de erro para um cenário que a camada consumidora (rotas, ainda não implementadas) ainda não define.
+- **Tratamento de erro:** o decorator `_translate_errors` envolve as 5 operações e converte qualquer `PyMongoError` (Mongo fora do ar, timeout, etc.) em `RepositoryError` (`app/domain/exceptions.py`), erro de domínio. A camada de rota captura `RepositoryError` e responde **HTTP 503**. Erros de "não encontrado" continuam sinalizados por retorno (`None`/`False`), não por exceção — a decisão de responder 404 fica na rota.
 
 ## 6. Estratégia de testes
 
 - **Testes unitários** (`tests/unit/test_mongo_consultation_repository.py`): usam `mongomock`, uma biblioteca que simula a API do PyMongo em memória, sem precisar de um MongoDB de verdade rodando. Cobrem todas as operações (save, list ordenado, get encontrado/não encontrado, delete encontrado/não encontrado, update encontrado/não encontrado).
 - **Testes de integração** (`tests/integration/test_mongodb.py`): rodam contra um MongoDB real, configurado pela mesma `MONGODB_URI` da aplicação, mas usando um banco **separado** (`ecomentor_test`) — nunca o banco de desenvolvimento — e limpando a coleção depois de cada teste.
-- Se não houver MongoDB acessível (ninguém com o serviço rodando localmente), os testes de integração são pulados automaticamente (`pytest.mark.skipif`), em vez de falhar a suíte inteira — eles passam a rodar de verdade assim que houver um MongoDB disponível.
+- Se não houver MongoDB acessível localmente, os testes de integração são pulados automaticamente (`pytest.mark.skipif`), em vez de falhar a suíte inteira. No **CI** (`.github/workflows/tests.yml`) sobe um serviço `mongo:7`, então lá esses 4 testes executam de verdade (38 passed / 0 skipped).
 - Essa separação (unit rápido e determinístico via mock + integração opcional contra o banco real) segue o princípio da pirâmide de testes: muitos testes rápidos na base, poucos testes mais lentos confirmando a integração real.
 
 ## 7. Decisões de escopo — o que foi deixado de fora, de propósito

@@ -19,7 +19,7 @@ gratuita e determinística.
 
 ## Suíte
 
-**38 testes** (34 executados, 4 pulados quando não há MongoDB local).
+**40 testes** (36 executados, 4 pulados quando não há MongoDB local).
 
 ### Unitários — `tests/unit/`
 
@@ -30,12 +30,13 @@ gratuita e determinística.
 | `test_groq_provider.py` | `GroqProvider` com `ChatGroq` mockado: resposta ok, erro no `invoke` → `RuntimeError`, conteúdo não-string, falha ao construir o client. |
 | `test_llm_provider.py` | `GroqProvider` respeita o contrato `LLMProvider`. |
 | `test_mongo_consultation_repository.py` | CRUD completo via `mongomock` (`tz_aware=True`), ordenação por `created_at`, casos "não encontrado", e `PyMongoError` → `RepositoryError`. |
+| `test_database.py` | `get_database()` devolve o `Database` com o nome configurado (cobre `app/database/mongodb.py`). |
 
 ### Integração — `tests/integration/`
 
 | Arquivo | Cobre |
 |---|---|
-| `test_health.py` | `GET /health`. |
+| `test_health.py` | `GET /health` com `get_database` mockado: 200 quando o `ping` responde, 503 quando levanta `PyMongoError`. |
 | `test_consultations_api.py` | rotas de `consultations` via `TestClient`, com `app.dependency_overrides` trocando o serviço por um repositório em memória compartilhado. Cobre 201/200/404/204 e 503 quando o repositório levanta `RepositoryError`. |
 | `test_mongodb.py` | round-trip contra um MongoDB **real** (`MONGODB_URI`, banco `ecomentor_test`). Pulado automaticamente (`pytest.mark.skipif`) se não houver MongoDB acessível. |
 
