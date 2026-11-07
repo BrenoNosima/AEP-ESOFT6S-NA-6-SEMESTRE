@@ -14,10 +14,10 @@ Esta pasta é lida automaticamente pelo Claude Code sempre que alguém do time a
 
 Se você criar um `.claude/settings.local.json` na sua máquina (para preferências só suas), **garanta que ele está no `.gitignore`** antes do primeiro commit real do projeto (tarefa "Higienizar .gitignore" do Kanban). O mesmo vale para qualquer `.env` — nunca comitar chave de API ou string de conexão do Mongo.
 
-## O que tem aqui hoje
+## O que tem aqui hoje (2ª entrega)
 
-- **`agents/rubric-auditor.md`** — roda uma auditoria manual do repositório contra os critérios da 1ª entrega da AEP e as regras de escopo do `CLAUDE.md` (coleção única, sem LangGraph, etc). Útil antes de marcar uma tarefa como concluída ou antes de criar a tag `entrega-1`.
+- **`agents/rubric-auditor.md`** — roda uma auditoria manual do repositório contra os critérios da 2ª entrega da AEP e as regras de escopo do `CLAUDE.md` (users + consultations relacionadas, subdocumentos, sem LangGraph, etc). Útil antes de marcar uma tarefa como concluída e obrigatório antes de criar a tag `entrega-2`.
 - **`agents/coverage-check.md`** — roda `pytest --cov` e resume o que está abaixo dos 70% exigidos.
-- **`commands/next-task.md`** (`/next-task`) — consulta o Kanban no Notion e diz qual é a próxima tarefa a implementar, na ordem correta de dependência.
-- **`commands/check-scope.md`** (`/check-scope`) — checagem rápida (grep) por sinais de que o projeto saiu do escopo da 1ª entrega (segunda coleção, segundo provider de LLM, pasta `agents/` do LangGraph, segredos commitados).
-- **`skills/aep-rubric/`** — a rubrica de avaliação da 1ª entrega, transcrita do PDF da AEP, para qualquer agente/skill referenciar sem depender de memória.
+- **`commands/next-task.md`** (`/next-task`) — consulta o "Kanban — Entrega 2" no Notion e diz qual é a próxima tarefa a implementar, na ordem correta de dependência.
+- **`commands/check-scope.md`** (`/check-scope`) — checagem rápida por sinais de que o projeto saiu do escopo da 2ª entrega (coleções inesperadas, segundo provider de LLM, LangGraph, front-end, segredos commitados, commits fora do padrão).
+- **`skills/aep-rubric/`** — a rubrica de avaliação da 2ª entrega (e, como referência, a da 1ª), transcrita do PDF da AEP, para qualquer agente/skill referenciar sem depender de memória.
