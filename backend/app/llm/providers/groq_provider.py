@@ -1,5 +1,6 @@
 from langchain_groq import ChatGroq
 
+from app.domain.exceptions import LLMProviderError
 from app.domain.interfaces.llm_provider import LLMProvider
 
 
@@ -23,20 +24,20 @@ class GroqProvider(LLMProvider):
                 max_retries=max_retries,
             )
         except Exception as error:
-            raise RuntimeError("Não foi possível inicializar o cliente da Groq.") from error
+            raise LLMProviderError("Não foi possível inicializar o cliente da Groq.") from error
 
     def generate_response(self, prompt: str) -> str:
         try:
             response = self._client.invoke(prompt)
         except Exception as error:
-            raise RuntimeError("Não foi possível obter uma resposta da Groq.") from error
+            raise LLMProviderError("Não foi possível obter uma resposta da Groq.") from error
 
         content = response.content
 
         if not isinstance(content, str):
-            raise RuntimeError("A Groq retornou uma resposta em formato inválido.")
+            raise LLMProviderError("A Groq retornou uma resposta em formato inválido.")
 
         if not content.strip():
-            raise RuntimeError("A Groq retornou uma resposta vazia.")
+            raise LLMProviderError("A Groq retornou uma resposta vazia.")
 
         return content

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.domain.exceptions import LLMProviderError
 from app.llm.providers.groq_provider import GroqProvider
 
 
@@ -21,14 +22,14 @@ def test_generate_response_returns_the_client_content(chat_groq_class: MagicMock
 
 
 @patch("app.llm.providers.groq_provider.ChatGroq")
-def test_generate_response_wraps_client_errors_in_runtime_error(chat_groq_class: MagicMock) -> None:
+def test_generate_response_wraps_client_errors_in_llm_provider_error(chat_groq_class: MagicMock) -> None:
     mock_client = MagicMock()
     mock_client.invoke.side_effect = TimeoutError("a Groq não respondeu a tempo")
     chat_groq_class.return_value = mock_client
 
     provider = GroqProvider(api_key="fake-key")
 
-    with pytest.raises(RuntimeError, match="Não foi possível obter uma resposta da Groq."):
+    with pytest.raises(LLMProviderError, match="Não foi possível obter uma resposta da Groq."):
         provider.generate_response("Como descarto pilhas usadas?")
 
 
@@ -40,7 +41,7 @@ def test_generate_response_rejects_non_string_content(chat_groq_class: MagicMock
 
     provider = GroqProvider(api_key="fake-key")
 
-    with pytest.raises(RuntimeError, match="formato inválido"):
+    with pytest.raises(LLMProviderError, match="formato inválido"):
         provider.generate_response("Como descarto pilhas usadas?")
 
 
@@ -48,7 +49,7 @@ def test_generate_response_rejects_non_string_content(chat_groq_class: MagicMock
 def test_init_wraps_client_construction_errors(chat_groq_class: MagicMock) -> None:
     chat_groq_class.side_effect = ValueError("sem api key")
 
-    with pytest.raises(RuntimeError, match="inicializar o cliente da Groq"):
+    with pytest.raises(LLMProviderError, match="inicializar o cliente da Groq"):
         GroqProvider(api_key="")
 
 
@@ -60,7 +61,7 @@ def test_generate_response_rejects_empty_content(chat_groq_class: MagicMock) -> 
 
     provider = GroqProvider(api_key="fake-key")
 
-    with pytest.raises(RuntimeError, match="resposta vazia"):
+    with pytest.raises(LLMProviderError, match="resposta vazia"):
         provider.generate_response("Como descarto pilhas usadas?")
 
 
