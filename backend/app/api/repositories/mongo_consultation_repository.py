@@ -1,27 +1,11 @@
 from __future__ import annotations
 
-from functools import wraps
-
 from pymongo import ReturnDocument
 from pymongo.database import Database
-from pymongo.errors import PyMongoError
 
-from app.domain.exceptions import RepositoryError
+from app.api.repositories._mongo_errors import translate_errors
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.models.consultation import Consultation
-
-
-def _translate_errors(method):
-    """Converte qualquer PyMongoError em RepositoryError (erro de domínio)."""
-
-    @wraps(method)
-    def wrapper(*args, **kwargs):
-        try:
-            return method(*args, **kwargs)
-        except PyMongoError as error:
-            raise RepositoryError("Falha ao acessar o MongoDB.") from error
-
-    return wrapper
 
 
 class MongoConsultationRepository(ConsultationRepository):
@@ -34,12 +18,12 @@ class MongoConsultationRepository(ConsultationRepository):
         self._collection.create_index([("created_at", -1)])
         self._collection.create_index([("category", 1), ("created_at", -1)])
 
-    @_translate_errors
+    @translate_errors
     def save(self, consultation: Consultation) -> Consultation:
         self._collection.insert_one(self._to_document(consultation))
         return consultation
 
-    @_translate_errors
+    @translate_errors
     def list_all(
         self,
         *,
@@ -53,17 +37,17 @@ class MongoConsultationRepository(ConsultationRepository):
         )
         return [self._to_entity(document) for document in documents]
 
-    @_translate_errors
+    @translate_errors
     def get_by_id(self, consultation_id: str) -> Consultation | None:
         document = self._collection.find_one({"_id": consultation_id})
         return self._to_entity(document) if document else None
 
-    @_translate_errors
+    @translate_errors
     def delete(self, consultation_id: str) -> bool:
         result = self._collection.delete_one({"_id": consultation_id})
         return result.deleted_count > 0
 
-    @_translate_errors
+    @translate_errors
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         document = self._collection.find_one_and_update(
             {"_id": consultation_id},
