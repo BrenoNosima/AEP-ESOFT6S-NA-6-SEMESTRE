@@ -1,20 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.domain.models.category import Category as ConsultationCategory
 from app.domain.models.consultation import Consultation
-
-
-class ConsultationCategory(str, Enum):
-    residuos = "residuos"
-    agua = "agua"
-    energia = "energia"
-    consumo = "consumo"
-    geral = "geral"
 
 
 Question = Annotated[
