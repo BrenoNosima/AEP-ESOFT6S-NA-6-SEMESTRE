@@ -44,6 +44,9 @@ class FakeConsultationRepository(ConsultationRepository):
     def delete(self, consultation_id: str) -> bool:
         return self._storage.pop(consultation_id, None) is not None
 
+    def delete_by_user(self, user_id: str) -> int:
+        return 0
+
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         existing = self._storage.get(consultation_id)
         if existing is None:

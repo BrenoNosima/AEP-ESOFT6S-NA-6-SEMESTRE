@@ -35,6 +35,11 @@ class ConsultationRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete_by_user(self, user_id: str) -> int:
+        """Remove todas as consultas de um usuário; retorna quantas foram removidas."""
+        raise NotImplementedError
+
+    @abstractmethod
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         """Atualiza a categoria de uma consulta existente; retorna None se não existir."""
         raise NotImplementedError

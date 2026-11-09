@@ -139,3 +139,27 @@ def test_pymongo_error_is_translated_into_repository_error() -> None:
 
     with pytest.raises(RepositoryError):
         repository.list_all()
+
+
+def test_delete_by_user_removes_only_that_users_consultations(repository, database) -> None:
+    collection = database["consultations"]
+    for consultation_id, user_id in [("c1", "u1"), ("c2", "u1"), ("c3", "u2")]:
+        collection.insert_one(
+            {
+                "_id": consultation_id,
+                "user_id": user_id,
+                "question": "Pergunta",
+                "category": "geral",
+                "answer": "Resposta",
+                "created_at": datetime.now(timezone.utc),
+            }
+        )
+
+    removed = repository.delete_by_user("u1")
+
+    assert removed == 2
+    assert [d["_id"] for d in collection.find()] == ["c3"]
+
+
+def test_delete_by_user_returns_zero_when_user_has_no_consultations(repository) -> None:
+    assert repository.delete_by_user("sem-consultas") == 0
