@@ -23,4 +23,15 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: pytest
+      - run: pytest --cov-report=html --cov-report=xml
+      - name: Resumo da cobertura
+        if: always()
+        run: python -m coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            backend/htmlcov/
+            backend/coverage.xml
+          retention-days: 30
