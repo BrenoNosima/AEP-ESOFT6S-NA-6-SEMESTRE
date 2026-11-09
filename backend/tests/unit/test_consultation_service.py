@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
+from app.domain.exceptions import NotFoundError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
@@ -107,24 +110,27 @@ def test_get_consultation_returns_existing_consultation() -> None:
     assert service.get_consultation(created.id) == created
 
 
-def test_get_consultation_returns_none_when_not_found() -> None:
+def test_get_consultation_raises_not_found_when_missing() -> None:
     service, _, _ = _make_service()
 
-    assert service.get_consultation("id-inexistente") is None
+    with pytest.raises(NotFoundError, match="Consulta não encontrada."):
+        service.get_consultation("id-inexistente")
 
 
-def test_delete_consultation_returns_true_when_removed() -> None:
-    service, _, _ = _make_service()
+def test_delete_consultation_removes_it() -> None:
+    service, repository, _ = _make_service()
     created = service.create_consultation("Pergunta", "residuos")
 
-    assert service.delete_consultation(created.id) is True
-    assert service.get_consultation(created.id) is None
+    service.delete_consultation(created.id)
+
+    assert repository.get_by_id(created.id) is None
 
 
-def test_delete_consultation_returns_false_when_not_found() -> None:
+def test_delete_consultation_raises_not_found_when_missing() -> None:
     service, _, _ = _make_service()
 
-    assert service.delete_consultation("id-inexistente") is False
+    with pytest.raises(NotFoundError):
+        service.delete_consultation("id-inexistente")
 
 
 def test_update_consultation_category_changes_only_the_category() -> None:
@@ -133,16 +139,16 @@ def test_update_consultation_category_changes_only_the_category() -> None:
 
     updated = service.update_consultation_category(created.id, "residuos")
 
-    assert updated is not None
     assert updated.category == "residuos"
     assert updated.question == created.question
     assert updated.answer == created.answer
 
 
-def test_update_consultation_category_returns_none_when_not_found() -> None:
+def test_update_consultation_category_raises_not_found_when_missing() -> None:
     service, _, _ = _make_service()
 
-    assert service.update_consultation_category("id-inexistente", "agua") is None
+    with pytest.raises(NotFoundError):
+        service.update_consultation_category("id-inexistente", "agua")
 
 
 def test_list_consultations_filters_by_category() -> None:

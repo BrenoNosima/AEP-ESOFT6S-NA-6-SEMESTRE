@@ -6,11 +6,11 @@ import mongomock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.router import get_consultation_service, get_llm_provider
+from app.api.dependencies import get_consultation_service, get_llm_provider
 from app.api.services.consultation_service import ConsultationService
 from app.api.services.sustainability_service import SustainabilityService
 from app.database.mongodb import get_database
-from app.domain.exceptions import RepositoryError
+from app.domain.exceptions import LLMProviderError, RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
@@ -61,6 +61,11 @@ class InMemoryConsultationRepository(ConsultationRepository):
 class FailingConsultationRepository(InMemoryConsultationRepository):
     def list_all(self, **_: object) -> list[Consultation]:
         raise RepositoryError("MongoDB indisponível")
+
+
+class FailingLLMProvider(LLMProvider):
+    def generate_response(self, prompt: str) -> str:
+        raise LLMProviderError("Não foi possível obter uma resposta da Groq.")
 
 
 @pytest.fixture
@@ -168,6 +173,7 @@ def test_get_consultation_by_id_returns_404_when_missing(client: TestClient) -> 
     response = client.get("/consultations/id-inexistente")
 
     assert response.status_code == 404
+    assert response.json() == {"detail": "Consulta não encontrada."}
 
 
 def test_patch_category_updates_it(client: TestClient) -> None:
@@ -213,6 +219,22 @@ def test_list_consultations_returns_503_when_repository_unavailable(client: Test
 
     app.dependency_overrides[get_consultation_service] = _override_failing
     try:
-        assert client.get("/consultations").status_code == 503
+        response = client.get("/consultations")
     finally:
         del app.dependency_overrides[get_consultation_service]
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Serviço de dados indisponível. Tente novamente."}
+
+
+def test_create_consultation_returns_502_when_llm_fails(client: TestClient) -> None:
+    app.dependency_overrides[get_llm_provider] = FailingLLMProvider
+
+    response = client.post(
+        "/consultations",
+        json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
+    )
+
+    assert response.status_code == 502
+    assert response.json() == {"detail": "Não foi possível obter uma resposta da Groq."}
+    assert client.get("/consultations").json() == []
