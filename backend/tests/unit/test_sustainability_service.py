@@ -42,6 +42,66 @@ def test_prompt_requests_sustainability_guidance() -> None:
     assert "orientações práticas" in provider.received_prompt.lower()
 
 
+def test_guidance_prompt_contains_city_and_state() -> None:
+    question = "Onde posso descartar pilhas usadas?"
+    provider = FakeLLMProvider("Consulte os canais oficiais do município.")
+    service = SustainabilityService(provider)
+
+    response = service.generate_guidance(
+        question,
+        city="Maringá",
+        state="PR",
+    )
+
+    assert response == "Consulte os canais oficiais do município."
+    assert provider.received_prompt is not None
+    assert question in provider.received_prompt
+    assert "Maringá" in provider.received_prompt
+    assert "PR" in provider.received_prompt
+
+
+def test_guidance_prompt_handles_missing_location() -> None:
+    provider = FakeLLMProvider("Orientação sustentável.")
+    service = SustainabilityService(provider)
+
+    service.generate_guidance("Como reduzir o consumo de água?")
+
+    assert provider.received_prompt is not None
+    assert "localização do usuário não foi informada" in provider.received_prompt.lower()
+
+
+def test_guidance_prompt_forbids_invented_local_information() -> None:
+    provider = FakeLLMProvider("Orientação sustentável.")
+    service = SustainabilityService(provider)
+
+    service.generate_guidance(
+        "Onde descarto óleo de cozinha?",
+        city="Curitiba",
+        state="PR",
+    )
+
+    assert provider.received_prompt is not None
+    prompt = provider.received_prompt.lower()
+    assert "não invente endereços" in prompt
+    assert "pontos de coleta" in prompt
+    assert "horários de atendimento" in prompt
+    assert "regras municipais" in prompt
+    assert "canais oficiais da prefeitura" in prompt
+
+
+def test_generate_guidance_propagates_provider_error() -> None:
+    provider = MagicMock(spec=LLMProvider)
+    provider.generate_response.side_effect = LLMProviderError("Groq indisponível.")
+    service = SustainabilityService(provider)
+
+    with pytest.raises(LLMProviderError, match="Groq indisponível"):
+        service.generate_guidance(
+            "Onde descarto pilhas?",
+            city="Maringá",
+            state="PR",
+        )
+
+
 @pytest.mark.parametrize("category", list(Category))
 def test_classify_category_accepts_every_supported_category(category: Category) -> None:
     provider = FakeLLMProvider(category.value)

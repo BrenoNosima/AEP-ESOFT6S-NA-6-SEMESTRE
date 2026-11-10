@@ -30,13 +30,27 @@ class SustainabilityService:
         except ValueError as error:
             raise LLMProviderError("A LLM retornou uma categoria inválida.") from error
 
-    def generate_guidance(self, user_question: str) -> str:
+    def generate_guidance(
+        self,
+        user_question: str,
+        *,
+        city: str | None = None,
+        state: str | None = None,
+    ) -> str:
+        if city and state:
+            location_context = f"Cidade do usuário: {city}. Estado: {state}."
+        else:
+            location_context = "A localização do usuário não foi informada."
+
         prompt = (
             "Responda à pergunta abaixo em português, de maneira simples e "
             "objetiva. Foque em sustentabilidade e forneça orientações práticas, "
-            "evitando uma resposta excessivamente longa. Não invente locais "
-            "específicos de coleta. Quando a orientação depender de regras da "
-            "cidade ou região do usuário, informe essa dependência.\n\n"
+            "evitando uma resposta excessivamente longa. Use a localização somente "
+            "quando ela for relevante para a orientação. Não invente endereços, "
+            "pontos de coleta, horários de atendimento ou regras municipais. Se "
+            "não houver informação confiável e específica para o município, "
+            "reconheça essa limitação e recomende os canais oficiais da prefeitura.\n\n"
+            f"{location_context}\n\n"
             f"Pergunta do usuário: {user_question}"
         )
 
