@@ -1,31 +1,13 @@
 from __future__ import annotations
 
-import mongomock
 import pytest
 from fastapi.testclient import TestClient
 
 from app.api.repositories.mongo_consultation_repository import MongoConsultationRepository
-from app.database.mongodb import get_database
 from app.domain.models.consultation import Consultation
-from app.main import app
 
 _HOME = {"street": "Rua das Flores, 100", "city": "Maringá", "state": "PR"}
 _WORK = {"street": "Av. Brasil, 500", "city": "Curitiba", "state": "PR"}
-
-
-@pytest.fixture
-def test_database():
-    # Passa pelos repositórios Mongo reais (índice único de e-mail, $group).
-    return mongomock.MongoClient(tz_aware=True).db
-
-
-@pytest.fixture
-def client(test_database) -> TestClient:
-    app.dependency_overrides[get_database] = lambda: test_database
-
-    yield TestClient(app)
-
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture
