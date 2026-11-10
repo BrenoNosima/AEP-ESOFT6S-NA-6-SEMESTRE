@@ -81,6 +81,9 @@ class FakeConsultationRepository(ConsultationRepository):
     def delete(self, consultation_id: str) -> bool:
         raise NotImplementedError
 
+    def count_by_category(self, user_id: str) -> dict[str, int]:
+        raise NotImplementedError
+
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         raise NotImplementedError
 

@@ -31,12 +31,26 @@ class FakeConsultationRepository(ConsultationRepository):
         return consultation
 
     def list_all(
-        self, *, category: str | None = None, limit: int = 50, skip: int = 0
+        self,
+        *,
+        category: str | None = None,
+        user_id: str | None = None,
+        limit: int = 50,
+        skip: int = 0,
     ) -> list[Consultation]:
         items = list(self._storage.values())
         if category is not None:
             items = [c for c in items if c.category == category]
+        if user_id is not None:
+            items = [c for c in items if c.user_id == user_id]
         return items[skip : skip + limit]
+
+    def count_by_category(self, user_id: str) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for c in self._storage.values():
+            if c.user_id == user_id:
+                counts[c.category] = counts.get(c.category, 0) + 1
+        return counts
 
     def get_by_id(self, consultation_id: str) -> Consultation | None:
         return self._storage.get(consultation_id)

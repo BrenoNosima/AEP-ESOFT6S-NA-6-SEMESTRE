@@ -18,10 +18,11 @@ class ConsultationRepository(ABC):
         self,
         *,
         category: str | None = None,
+        user_id: str | None = None,
         limit: int = 50,
         skip: int = 0,
     ) -> list[Consultation]:
-        """Lista consultas (mais recentes primeiro), com filtro e paginação opcionais."""
+        """Lista consultas (mais recentes primeiro), com filtros e paginação opcionais."""
         raise NotImplementedError
 
     @abstractmethod
@@ -37,6 +38,11 @@ class ConsultationRepository(ABC):
     @abstractmethod
     def delete_by_user(self, user_id: str) -> int:
         """Remove todas as consultas de um usuário; retorna quantas foram removidas."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def count_by_category(self, user_id: str) -> dict[str, int]:
+        """Conta as consultas de um usuário agrupadas por categoria."""
         raise NotImplementedError
 
     @abstractmethod
