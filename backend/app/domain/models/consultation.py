@@ -4,10 +4,16 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import uuid4
 
+from app.domain.models.location import Location
+
 
 @dataclass(frozen=True)
 class Consultation:
-    """Registro de uma consulta de sustentabilidade já respondida."""
+    """Registro de uma consulta de sustentabilidade já respondida.
+
+    `user_id` referencia `users._id` e `location` é um snapshot do endereço usado
+    na resposta. Ambos são opcionais para ler documentos da 1ª entrega.
+    """
 
     question: str
     category: str
@@ -17,3 +23,5 @@ class Consultation:
     created_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc).replace(microsecond=0)
     )
+    user_id: str | None = None
+    location: Location | None = None
