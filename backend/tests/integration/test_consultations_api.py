@@ -10,7 +10,7 @@ from app.api.dependencies import get_consultation_service, get_llm_provider
 from app.api.services.consultation_service import ConsultationService
 from app.api.services.sustainability_service import SustainabilityService
 from app.database.mongodb import get_database
-from app.domain.exceptions import LLMProviderError, RepositoryError
+from app.domain.exceptions import ConflictError, LLMProviderError, RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
@@ -49,6 +49,9 @@ class InMemoryConsultationRepository(ConsultationRepository):
     def delete(self, consultation_id: str) -> bool:
         return self._consultations.pop(consultation_id, None) is not None
 
+    def delete_by_user(self, user_id: str) -> int:
+        return 0
+
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         existing = self._consultations.get(consultation_id)
         if existing is None:
@@ -61,6 +64,11 @@ class InMemoryConsultationRepository(ConsultationRepository):
 class FailingConsultationRepository(InMemoryConsultationRepository):
     def list_all(self, **_: object) -> list[Consultation]:
         raise RepositoryError("MongoDB indisponível")
+
+
+class ConflictingConsultationRepository(InMemoryConsultationRepository):
+    def save(self, consultation: Consultation) -> Consultation:
+        raise ConflictError("Registro duplicado.")
 
 
 class FailingLLMProvider(LLMProvider):
@@ -238,3 +246,22 @@ def test_create_consultation_returns_502_when_llm_fails(client: TestClient) -> N
     assert response.status_code == 502
     assert response.json() == {"detail": "Não foi possível obter uma resposta da Groq."}
     assert client.get("/consultations").json() == []
+
+
+def test_conflict_error_is_translated_to_409(client: TestClient) -> None:
+    def _override_conflicting() -> ConsultationService:
+        return ConsultationService(
+            SustainabilityService(FakeLLMProvider("x")), ConflictingConsultationRepository()
+        )
+
+    app.dependency_overrides[get_consultation_service] = _override_conflicting
+    try:
+        response = client.post(
+            "/consultations",
+            json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
+        )
+    finally:
+        del app.dependency_overrides[get_consultation_service]
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Registro duplicado."}

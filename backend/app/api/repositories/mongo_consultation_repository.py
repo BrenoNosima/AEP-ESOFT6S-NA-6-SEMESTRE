@@ -48,6 +48,10 @@ class MongoConsultationRepository(ConsultationRepository):
         return result.deleted_count > 0
 
     @translate_errors
+    def delete_by_user(self, user_id: str) -> int:
+        return self._collection.delete_many({"user_id": user_id}).deleted_count
+
+    @translate_errors
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
         document = self._collection.find_one_and_update(
             {"_id": consultation_id},

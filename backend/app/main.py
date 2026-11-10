@@ -5,7 +5,12 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import consultations, health
 from app.core.config import settings
-from app.domain.exceptions import LLMProviderError, NotFoundError, RepositoryError
+from app.domain.exceptions import (
+    ConflictError,
+    LLMProviderError,
+    NotFoundError,
+    RepositoryError,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,6 +29,11 @@ app.include_router(consultations.router)
 @app.exception_handler(NotFoundError)
 def handle_not_found(_: Request, error: NotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(error)})
+
+
+@app.exception_handler(ConflictError)
+def handle_conflict(_: Request, error: ConflictError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"detail": str(error)})
 
 
 @app.exception_handler(RepositoryError)
