@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-import mongomock
 import pytest
 from fastapi.testclient import TestClient
 
@@ -10,20 +9,12 @@ from app.api.dependencies import get_consultation_service, get_llm_provider
 from app.api.repositories.mongo_user_repository import MongoUserRepository
 from app.api.services.consultation_service import ConsultationService
 from app.api.services.sustainability_service import SustainabilityService
-from app.database.mongodb import get_database
 from app.domain.exceptions import ConflictError, LLMProviderError, RepositoryError
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
 from app.domain.models.consultation import Consultation
+from app.llm.providers.fake_provider import FakeLLMProvider
 from app.main import app
-
-
-class FakeLLMProvider(LLMProvider):
-    def __init__(self, fixed_response: str) -> None:
-        self.fixed_response = fixed_response
-
-    def generate_response(self, prompt: str) -> str:
-        return self.fixed_response
 
 
 class InMemoryConsultationRepository(ConsultationRepository):
@@ -99,23 +90,6 @@ class ScriptedLLMProvider(LLMProvider):
 class FailingLLMProvider(LLMProvider):
     def generate_response(self, prompt: str) -> str:
         raise LLMProviderError("Não foi possível obter uma resposta da Groq.")
-
-
-@pytest.fixture
-def test_database():
-    return mongomock.MongoClient().db
-
-
-@pytest.fixture
-def client(test_database) -> TestClient:
-    app.dependency_overrides[get_llm_provider] = lambda: FakeLLMProvider(
-        "Descarte em ponto de coleta."
-    )
-    app.dependency_overrides[get_database] = lambda: test_database
-
-    yield TestClient(app)
-
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture
