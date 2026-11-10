@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api.routes import consultations, health
+from app.api.routes import consultations, health, users
 from app.core.config import settings
 from app.domain.exceptions import (
     ConflictError,
@@ -22,6 +22,7 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(consultations.router)
+app.include_router(users.router)
 
 
 # Erros de domínio -> status HTTP. Centralizado aqui para as rotas não

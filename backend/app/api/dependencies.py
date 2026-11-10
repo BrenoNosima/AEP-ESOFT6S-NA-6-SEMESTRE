@@ -12,12 +12,15 @@ from fastapi import Depends
 from pymongo.database import Database
 
 from app.api.repositories.mongo_consultation_repository import MongoConsultationRepository
+from app.api.repositories.mongo_user_repository import MongoUserRepository
 from app.api.services.consultation_service import ConsultationService
 from app.api.services.sustainability_service import SustainabilityService
+from app.api.services.user_service import UserService
 from app.core.config import settings
 from app.database.mongodb import get_database
 from app.domain.interfaces.consultation_repository import ConsultationRepository
 from app.domain.interfaces.llm_provider import LLMProvider
+from app.domain.interfaces.user_repository import UserRepository
 from app.llm.providers.groq_provider import GroqProvider
 
 
@@ -43,3 +46,16 @@ def get_consultation_service(
     repository: ConsultationRepository = Depends(get_consultation_repository),
 ) -> ConsultationService:
     return ConsultationService(sustainability_service, repository)
+
+
+def get_user_repository(
+    database: Database = Depends(get_database),
+) -> UserRepository:
+    return MongoUserRepository(database)
+
+
+def get_user_service(
+    users: UserRepository = Depends(get_user_repository),
+    consultations: ConsultationRepository = Depends(get_consultation_repository),
+) -> UserService:
+    return UserService(users, consultations)

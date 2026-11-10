@@ -47,41 +47,53 @@ class FakeUserRepository(UserRepository):
 
 
 class FakeConsultationRepository(ConsultationRepository):
-    """Guarda o dono de cada consulta à parte (Consultation ainda não tem user_id)."""
-
     def __init__(self) -> None:
-        self._owners: dict[str, str] = {}
+        self._storage: dict[str, Consultation] = {}
         self.delete_by_user_calls: list[str] = []
 
-    def add_for_user(self, user_id: str) -> str:
-        consultation = Consultation(question="Pergunta", category="geral", answer="Resposta")
-        self._owners[consultation.id] = user_id
+    def add_for_user(self, user_id: str, category: str = "geral") -> str:
+        consultation = Consultation(
+            question="Pergunta", category=category, answer="Resposta", user_id=user_id
+        )
+        self._storage[consultation.id] = consultation
         return consultation.id
 
     def ids_of(self, user_id: str) -> list[str]:
-        return [cid for cid, owner in self._owners.items() if owner == user_id]
+        return [c.id for c in self._storage.values() if c.user_id == user_id]
 
     def delete_by_user(self, user_id: str) -> int:
         self.delete_by_user_calls.append(user_id)
         removed = self.ids_of(user_id)
         for consultation_id in removed:
-            del self._owners[consultation_id]
+            del self._storage[consultation_id]
         return len(removed)
+
+    def list_all(
+        self,
+        *,
+        category: str | None = None,
+        user_id: str | None = None,
+        limit: int = 50,
+        skip: int = 0,
+    ) -> list[Consultation]:
+        items = [c for c in self._storage.values() if user_id is None or c.user_id == user_id]
+        return items[skip : skip + limit]
+
+    def count_by_category(self, user_id: str) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for consultation in self._storage.values():
+            if consultation.user_id == user_id:
+                counts[consultation.category] = counts.get(consultation.category, 0) + 1
+        return counts
 
     # Métodos do contrato que o UserService não usa.
     def save(self, consultation: Consultation) -> Consultation:
-        raise NotImplementedError
-
-    def list_all(self, **_: object) -> list[Consultation]:
         raise NotImplementedError
 
     def get_by_id(self, consultation_id: str) -> Consultation | None:
         raise NotImplementedError
 
     def delete(self, consultation_id: str) -> bool:
-        raise NotImplementedError
-
-    def count_by_category(self, user_id: str) -> dict[str, int]:
         raise NotImplementedError
 
     def update_category(self, consultation_id: str, category: str) -> Consultation | None:
@@ -202,3 +214,35 @@ def test_delete_user_frees_email_for_reuse(service) -> None:
     again = service.create_user("Ana", "ana@example.com")
 
     assert again.id != ana.id
+
+
+def test_list_consultations_returns_only_that_users_history(service, consultations) -> None:
+    ana = service.create_user("Ana", "ana@example.com")
+    bia = service.create_user("Bia", "bia@example.com")
+    first = consultations.add_for_user(ana.id)
+    second = consultations.add_for_user(ana.id)
+    consultations.add_for_user(bia.id)
+
+    history = service.list_consultations(ana.id)
+
+    assert {c.id for c in history} == {first, second}
+    assert [c.id for c in service.list_consultations(ana.id, limit=1, skip=1)] == [second]
+
+
+def test_list_consultations_raises_not_found_when_user_missing(service) -> None:
+    with pytest.raises(NotFoundError):
+        service.list_consultations("id-inexistente")
+
+
+def test_summarize_consultations_counts_by_category(service, consultations) -> None:
+    ana = service.create_user("Ana", "ana@example.com")
+    consultations.add_for_user(ana.id, "agua")
+    consultations.add_for_user(ana.id, "agua")
+    consultations.add_for_user(ana.id, "residuos")
+
+    assert service.summarize_consultations(ana.id) == {"agua": 2, "residuos": 1}
+
+
+def test_summarize_consultations_raises_not_found_when_user_missing(service) -> None:
+    with pytest.raises(NotFoundError):
+        service.summarize_consultations("id-inexistente")
