@@ -41,17 +41,18 @@ def get_consultation_repository(
     return MongoConsultationRepository(database)
 
 
-def get_consultation_service(
-    sustainability_service: SustainabilityService = Depends(get_sustainability_service),
-    repository: ConsultationRepository = Depends(get_consultation_repository),
-) -> ConsultationService:
-    return ConsultationService(sustainability_service, repository)
-
-
 def get_user_repository(
     database: Database = Depends(get_database),
 ) -> UserRepository:
     return MongoUserRepository(database)
+
+
+def get_consultation_service(
+    sustainability_service: SustainabilityService = Depends(get_sustainability_service),
+    repository: ConsultationRepository = Depends(get_consultation_repository),
+    users: UserRepository = Depends(get_user_repository),
+) -> ConsultationService:
+    return ConsultationService(sustainability_service, repository, users)
 
 
 def get_user_service(

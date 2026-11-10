@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.domain.models.category import Category as ConsultationCategory
 from app.domain.models.consultation import Consultation
+from app.domain.models.location import Location
 from app.domain.models.user import Address, User
 
 
@@ -29,12 +30,28 @@ State = Annotated[
 
 
 class ConsultationRequest(BaseModel):
+    user_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
+        description="Id de um usuário existente (`GET /users`)."
+    )
     question: Question = Field(examples=["Posso jogar óleo de cozinha na pia?"])
-    category: ConsultationCategory = Field(examples=[ConsultationCategory.residuos])
+    category: ConsultationCategory | None = Field(
+        default=None,
+        description="Opcional. Se omitida, a LLM classifica a pergunta automaticamente.",
+        examples=[ConsultationCategory.residuos],
+    )
 
 
 class ConsultationCategoryUpdate(BaseModel):
     category: ConsultationCategory = Field(examples=[ConsultationCategory.agua])
+
+
+class LocationSchema(BaseModel):
+    city: str
+    state: str
+
+    @classmethod
+    def from_domain(cls, location: Location) -> "LocationSchema":
+        return cls(city=location.city, state=location.state)
 
 
 class ConsultationResponse(BaseModel):
@@ -43,6 +60,11 @@ class ConsultationResponse(BaseModel):
     category: str
     answer: str
     created_at: datetime
+    # Opcionais: documentos da 1ª entrega não têm usuário nem localização.
+    user_id: str | None = None
+    location: LocationSchema | None = Field(
+        default=None, description="Cidade/UF usadas na resposta (snapshot do endereço)."
+    )
 
     @classmethod
     def from_domain(cls, consultation: Consultation) -> "ConsultationResponse":
@@ -52,6 +74,10 @@ class ConsultationResponse(BaseModel):
             category=consultation.category,
             answer=consultation.answer,
             created_at=consultation.created_at,
+            user_id=consultation.user_id,
+            location=LocationSchema.from_domain(consultation.location)
+            if consultation.location
+            else None,
         )
 
 

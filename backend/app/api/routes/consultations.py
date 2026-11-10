@@ -27,14 +27,26 @@ _ERRORS = {
     response_model=ConsultationResponse,
     status_code=201,
     summary="Criar consulta",
-    description="Recebe uma dúvida de sustentabilidade, gera a orientação via LLM (Groq) e persiste no MongoDB.",
-    responses={502: _ERRORS[502], 503: _ERRORS[503]},
+    description=(
+        "Recebe a dúvida de um usuário existente, gera a orientação via LLM (Groq) "
+        "contextualizada pela cidade do endereço principal dele e persiste no MongoDB. "
+        "Sem `category`, a LLM classifica a pergunta."
+    ),
+    responses={
+        404: {"description": "Usuário não encontrado."},
+        502: _ERRORS[502],
+        503: _ERRORS[503],
+    },
 )
 def create_consultation(
     request: ConsultationRequest,
     service: ConsultationService = Depends(get_consultation_service),
 ) -> ConsultationResponse:
-    consultation = service.create_consultation(request.question, request.category.value)
+    consultation = service.create_consultation(
+        request.user_id,
+        request.question,
+        request.category.value if request.category else None,
+    )
     return ConsultationResponse.from_domain(consultation)
 
 

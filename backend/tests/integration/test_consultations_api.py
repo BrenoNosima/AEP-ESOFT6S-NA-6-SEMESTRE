@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_consultation_service, get_llm_provider
+from app.api.repositories.mongo_user_repository import MongoUserRepository
 from app.api.services.consultation_service import ConsultationService
 from app.api.services.sustainability_service import SustainabilityService
 from app.database.mongodb import get_database
@@ -85,6 +86,16 @@ class ConflictingConsultationRepository(InMemoryConsultationRepository):
         raise ConflictError("Registro duplicado.")
 
 
+class ScriptedLLMProvider(LLMProvider):
+    """Devolve as respostas na ordem dada (1ª: classificação, 2ª: orientação)."""
+
+    def __init__(self, *responses: str) -> None:
+        self._responses = list(responses)
+
+    def generate_response(self, prompt: str) -> str:
+        return self._responses.pop(0)
+
+
 class FailingLLMProvider(LLMProvider):
     def generate_response(self, prompt: str) -> str:
         raise LLMProviderError("Não foi possível obter uma resposta da Groq.")
@@ -107,10 +118,37 @@ def client(test_database) -> TestClient:
     app.dependency_overrides.clear()
 
 
-def _create(client: TestClient, question: str, category: str) -> dict:
-    return client.post(
-        "/consultations", json={"question": question, "category": category}
-    ).json()
+@pytest.fixture
+def user(client: TestClient) -> dict:
+    response = client.post(
+        "/users",
+        json={
+            "name": "Ana Souza",
+            "email": "ana@example.com",
+            "addresses": [{"street": "Rua das Flores, 100", "city": "Maringá", "state": "PR"}],
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def _post(client: TestClient, user: dict, question: str, category: str | None = "geral"):
+    payload = {"user_id": user["id"], "question": question}
+    if category is not None:
+        payload["category"] = category
+    return client.post("/consultations", json=payload)
+
+
+def _create(client: TestClient, user: dict, question: str, category: str) -> dict:
+    return _post(client, user, question, category).json()
+
+
+def _service_with(test_database, repository: ConsultationRepository) -> ConsultationService:
+    return ConsultationService(
+        SustainabilityService(FakeLLMProvider("x")),
+        repository,
+        MongoUserRepository(test_database),
+    )
 
 
 def test_health_returns_ok(client: TestClient) -> None:
@@ -120,39 +158,79 @@ def test_health_returns_ok(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_create_consultation_returns_201_with_generated_answer(client: TestClient) -> None:
-    response = client.post(
-        "/consultations",
-        json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
-    )
+def test_create_consultation_returns_201_with_generated_answer(
+    client: TestClient, user: dict
+) -> None:
+    response = _post(client, user, "Posso jogar óleo na pia?", "residuos")
 
     assert response.status_code == 201
     body = response.json()
     assert body["question"] == "Posso jogar óleo na pia?"
     assert body["category"] == "residuos"
     assert body["answer"] == "Descarte em ponto de coleta."
+    assert body["user_id"] == user["id"]
+    assert body["location"] == {"city": "Maringá", "state": "PR"}
     assert "id" in body and "created_at" in body
 
 
-def test_create_consultation_rejects_short_question(client: TestClient) -> None:
-    response = client.post(
-        "/consultations", json={"question": "oi", "category": "residuos"}
+def test_create_consultation_classifies_category_when_omitted(
+    client: TestClient, user: dict
+) -> None:
+    app.dependency_overrides[get_llm_provider] = lambda: ScriptedLLMProvider(
+        "agua", "Feche a torneira ao escovar os dentes."
     )
 
-    assert response.status_code == 422
+    response = _post(client, user, "Como economizar água em casa?", category=None)
+
+    assert response.status_code == 201
+    assert response.json()["category"] == "agua"
+    assert response.json()["answer"] == "Feche a torneira ao escovar os dentes."
 
 
-def test_create_consultation_rejects_unknown_category(client: TestClient) -> None:
+def test_create_consultation_returns_404_when_user_missing(client: TestClient) -> None:
     response = client.post(
         "/consultations",
-        json={"question": "Como descarto pilhas?", "category": "xpto"},
+        json={"user_id": "id-inexistente", "question": "Posso jogar óleo na pia?"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Usuário não encontrado."}
+
+
+def test_create_consultation_requires_user_id(client: TestClient) -> None:
+    response = client.post(
+        "/consultations", json={"question": "Posso jogar óleo na pia?", "category": "agua"}
     )
 
     assert response.status_code == 422
 
 
-def test_list_consultations_returns_created_items(client: TestClient) -> None:
-    created = _create(client, "Como economizar água?", "agua")
+def test_created_consultation_shows_in_user_history_and_summary(
+    client: TestClient, user: dict
+) -> None:
+    created = _create(client, user, "Como economizar água?", "agua")
+
+    history = client.get(f"/users/{user['id']}/consultations").json()
+    summary = client.get(f"/users/{user['id']}/consultations/summary").json()
+
+    assert [c["id"] for c in history] == [created["id"]]
+    assert summary["by_category"] == [{"category": "agua", "total": 1}]
+
+
+def test_create_consultation_rejects_short_question(client: TestClient, user: dict) -> None:
+    response = _post(client, user, "oi", "residuos")
+
+    assert response.status_code == 422
+
+
+def test_create_consultation_rejects_unknown_category(client: TestClient, user: dict) -> None:
+    response = _post(client, user, "Como descarto pilhas?", "xpto")
+
+    assert response.status_code == 422
+
+
+def test_list_consultations_returns_created_items(client: TestClient, user: dict) -> None:
+    created = _create(client, user, "Como economizar água?", "agua")
 
     response = client.get("/consultations")
 
@@ -160,9 +238,9 @@ def test_list_consultations_returns_created_items(client: TestClient) -> None:
     assert any(item["id"] == created["id"] for item in response.json())
 
 
-def test_list_consultations_filters_by_category(client: TestClient) -> None:
-    _create(client, "Como economizar água em casa?", "agua")
-    _create(client, "Como descartar pilhas usadas?", "residuos")
+def test_list_consultations_filters_by_category(client: TestClient, user: dict) -> None:
+    _create(client, user, "Como economizar água em casa?", "agua")
+    _create(client, user, "Como descartar pilhas usadas?", "residuos")
 
     response = client.get("/consultations", params={"category": "agua"})
 
@@ -172,9 +250,9 @@ def test_list_consultations_filters_by_category(client: TestClient) -> None:
     assert body[0]["category"] == "agua"
 
 
-def test_list_consultations_respects_limit(client: TestClient) -> None:
+def test_list_consultations_respects_limit(client: TestClient, user: dict) -> None:
     for i in range(3):
-        _create(client, f"Pergunta numero {i}", "geral")
+        _create(client, user, f"Pergunta numero {i}", "geral")
 
     response = client.get("/consultations", params={"limit": 2})
 
@@ -182,8 +260,8 @@ def test_list_consultations_respects_limit(client: TestClient) -> None:
     assert len(response.json()) == 2
 
 
-def test_get_consultation_by_id_returns_it(client: TestClient) -> None:
-    created = _create(client, "Como descartar pilhas?", "residuos")
+def test_get_consultation_by_id_returns_it(client: TestClient, user: dict) -> None:
+    created = _create(client, user, "Como descartar pilhas?", "residuos")
 
     response = client.get(f"/consultations/{created['id']}")
 
@@ -198,8 +276,8 @@ def test_get_consultation_by_id_returns_404_when_missing(client: TestClient) -> 
     assert response.json() == {"detail": "Consulta não encontrada."}
 
 
-def test_patch_category_updates_it(client: TestClient) -> None:
-    created = _create(client, "Como separar lixo reciclável?", "geral")
+def test_patch_category_updates_it(client: TestClient, user: dict) -> None:
+    created = _create(client, user, "Como separar lixo reciclável?", "geral")
 
     response = client.patch(
         f"/consultations/{created['id']}", json={"category": "residuos"}
@@ -218,8 +296,8 @@ def test_patch_category_returns_404_when_missing(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_delete_consultation_returns_204(client: TestClient) -> None:
-    created = _create(client, "Como reduzir consumo de energia?", "energia")
+def test_delete_consultation_returns_204(client: TestClient, user: dict) -> None:
+    created = _create(client, user, "Como reduzir consumo de energia?", "energia")
 
     response = client.delete(f"/consultations/{created['id']}")
 
@@ -233,11 +311,11 @@ def test_delete_consultation_returns_404_when_missing(client: TestClient) -> Non
     assert response.status_code == 404
 
 
-def test_list_consultations_returns_503_when_repository_unavailable(client: TestClient) -> None:
+def test_list_consultations_returns_503_when_repository_unavailable(
+    client: TestClient, test_database
+) -> None:
     def _override_failing() -> ConsultationService:
-        return ConsultationService(
-            SustainabilityService(FakeLLMProvider("x")), FailingConsultationRepository()
-        )
+        return _service_with(test_database, FailingConsultationRepository())
 
     app.dependency_overrides[get_consultation_service] = _override_failing
     try:
@@ -249,31 +327,25 @@ def test_list_consultations_returns_503_when_repository_unavailable(client: Test
     assert response.json() == {"detail": "Serviço de dados indisponível. Tente novamente."}
 
 
-def test_create_consultation_returns_502_when_llm_fails(client: TestClient) -> None:
+def test_create_consultation_returns_502_when_llm_fails(client: TestClient, user: dict) -> None:
     app.dependency_overrides[get_llm_provider] = FailingLLMProvider
 
-    response = client.post(
-        "/consultations",
-        json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
-    )
+    response = _post(client, user, "Posso jogar óleo na pia?", "residuos")
 
     assert response.status_code == 502
     assert response.json() == {"detail": "Não foi possível obter uma resposta da Groq."}
     assert client.get("/consultations").json() == []
 
 
-def test_conflict_error_is_translated_to_409(client: TestClient) -> None:
+def test_conflict_error_is_translated_to_409(
+    client: TestClient, user: dict, test_database
+) -> None:
     def _override_conflicting() -> ConsultationService:
-        return ConsultationService(
-            SustainabilityService(FakeLLMProvider("x")), ConflictingConsultationRepository()
-        )
+        return _service_with(test_database, ConflictingConsultationRepository())
 
     app.dependency_overrides[get_consultation_service] = _override_conflicting
     try:
-        response = client.post(
-            "/consultations",
-            json={"question": "Posso jogar óleo na pia?", "category": "residuos"},
-        )
+        response = _post(client, user, "Posso jogar óleo na pia?", "residuos")
     finally:
         del app.dependency_overrides[get_consultation_service]
 
