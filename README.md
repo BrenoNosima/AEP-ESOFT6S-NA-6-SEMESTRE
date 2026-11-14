@@ -84,6 +84,16 @@ pytest
 (os testes de integração contra MongoDB real são pulados automaticamente se não houver banco).
 Mais detalhes em [backend/docs/testes.md](backend/docs/testes.md).
 
+## Metodologia de trabalho
+
+As tarefas da 2ª entrega são organizadas em um quadro Kanban público no Notion:
+
+**[Kanban — Entrega 2](https://app.notion.com/p/6f6980145eae40c48ba937b14c8e9310?v=41193299daff81ae8c7d000cf0eacf79&source=copy_link)**
+
+Cada tarefa é um cartão (Backlog → A Fazer → Em Andamento → Revisão → Concluído), com
+responsável, critério da rubrica que ela evidencia e a mensagem do commit esperado.
+O histórico do repositório segue o mesmo padrão: um commit `tipo: descrição` por cartão.
+
 ## Versão da entrega
 
 1ª entrega identificada pela tag **`entrega-1`**.
